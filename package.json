@@ -53,5 +53,8 @@
     "*.sol": "prettier --check",
     "*.js": "prettier --check",
     "*.ts": "prettier --check"
+  },
+  "resolutions": {
+    "got": ">=11.8.5"
   }
 }

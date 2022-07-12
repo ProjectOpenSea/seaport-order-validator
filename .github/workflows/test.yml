@@ -3,10 +3,13 @@ name: Test CI
 on: 
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
+
+env:
+  ETH_RPC: ${{ secrets.ETH_RPC }}
 
 concurrency:
   group: ${{github.workflow}}-${{github.ref}}
