@@ -11,14 +11,14 @@ import {
 } from "./constants";
 
 import type {
-  SeaportVerifier,
+  SeaportValidator,
   TestERC1155,
   TestERC721,
 } from "../typechain-types";
 import type {
   OrderParametersStruct,
   OrderStruct,
-} from "../typechain-types/contracts/SeaportVerifier";
+} from "../typechain-types/contracts/SeaportValidator";
 import type { TestERC20 } from "../typechain-types/contracts/test/TestERC20";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
@@ -26,19 +26,19 @@ describe("Validate Orders", function () {
   async function deployFixture() {
     const [owner, ...otherAccounts] = await ethers.getSigners();
 
-    const Verifier = await ethers.getContractFactory("SeaportVerifier");
+    const Validator = await ethers.getContractFactory("SeaportValidator");
     const TestERC721Factory = await ethers.getContractFactory("TestERC721");
     const TestERC1155Factory = await ethers.getContractFactory("TestERC1155");
     const TestERC20Factory = await ethers.getContractFactory("TestERC20");
 
-    const verifier = await Verifier.deploy();
+    const validator = await Validator.deploy();
     const erc721_1 = await TestERC721Factory.deploy("NFT1", "NFT1");
     const erc721_2 = await TestERC721Factory.deploy("NFT2", "NFT2");
     const erc1155_1 = await TestERC1155Factory.deploy("uri_here");
     const erc20_1 = await TestERC20Factory.deploy("ERC20", "ERC20");
 
     return {
-      verifier,
+      validator,
       owner,
       otherAccounts,
       erc721_1,
@@ -50,7 +50,7 @@ describe("Validate Orders", function () {
 
   describe("Validate Offer Items", function () {
     let baseOrderParameters: OrderParametersStruct;
-    let verifier: SeaportVerifier;
+    let validator: SeaportValidator;
     let owner: SignerWithAddress;
     let otherAccounts: SignerWithAddress[];
     let erc721_1: TestERC721;
@@ -76,7 +76,7 @@ describe("Validate Orders", function () {
 
     beforeEach(async function () {
       const res = await loadFixture(deployFixture);
-      verifier = res.verifier;
+      validator = res.validator;
       owner = res.owner;
       otherAccounts = res.otherAccounts;
       erc721_1 = res.erc721_1;
@@ -93,7 +93,7 @@ describe("Validate Orders", function () {
       };
 
       expect(
-        await verifier.validateOfferItems(order.parameters)
+        await validator.validateOfferItems(order.parameters)
       ).to.have.deep.property("errors", ["Need at least one offer item"]);
     });
 
@@ -114,7 +114,7 @@ describe("Validate Orders", function () {
       ];
 
       expect(
-        await verifier.validateOfferItems(order.parameters)
+        await validator.validateOfferItems(order.parameters)
       ).to.have.deep.property("errors", ["invalid item type"]);
     });
 
@@ -136,7 +136,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", ["no token approval"]);
       });
 
@@ -155,7 +155,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "not owner of token",
           "no token approval",
@@ -163,7 +163,7 @@ describe("Validate Orders", function () {
 
         await erc721_1.mint(otherAccounts[0].address, 2);
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "not owner of token",
           "no token approval",
@@ -188,7 +188,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", []);
       });
 
@@ -207,7 +207,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "Invalid ERC721 token",
           "not owner of token",
@@ -230,7 +230,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "Invalid ERC721 token",
           "not owner of token",
@@ -253,7 +253,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "Invalid ERC721 token",
           "not owner of token",
@@ -280,7 +280,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", ["no token approval"]);
       });
 
@@ -299,7 +299,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "no token approval",
           "insufficient token balance",
@@ -324,7 +324,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", []);
       });
     });
@@ -347,7 +347,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", ["insufficient token allowance"]);
       });
 
@@ -367,7 +367,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", [
           "insufficient token allowance",
           "insufficient token balance",
@@ -392,7 +392,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await verifier.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(order.parameters)
         ).to.have.deep.property("errors", []);
       });
     });
@@ -400,6 +400,6 @@ describe("Validate Orders", function () {
 
   // it("test", async function () {
   //   const testOrder = { parameters: testOrderParameters, signature: "0xdd5c86abf5b890e5a8fe43206f0b080bdb528208c44d81af9adca5bd47a214ef124bb4287a894c5f957c9a0f4dff6a850712f5c717bede3b014981f86e3582521c" };
-  //   const res = await verifier.callStatic.isValidOrder(testOrder);
+  //   const res = await validator.callStatic.isValidOrder(testOrder);
   // })
 });

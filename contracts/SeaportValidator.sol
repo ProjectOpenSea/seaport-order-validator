@@ -28,7 +28,7 @@ import {
 } from "./lib/ErrorsAndWarnings.sol";
 import "hardhat/console.sol";
 
-contract SeaportVerifier is ConsiderationTypeHashes {
+contract SeaportValidator is ConsiderationTypeHashes {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using StringMemoryArray for string[];
 
