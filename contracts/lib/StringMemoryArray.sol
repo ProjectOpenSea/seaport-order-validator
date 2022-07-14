@@ -2,6 +2,10 @@
 pragma solidity ^0.8.10;
 
 library StringMemoryArray {
+    /**
+     * @notice Concats two string arrays in memory. Parameters are not changed.
+     * @return String array of concatenated string arrays.
+     */
     function concatMemory(string[] memory array1, string[] memory array2)
         internal
         pure
@@ -27,6 +31,10 @@ library StringMemoryArray {
         return returnValue;
     }
 
+    /**
+     * @notice Adds a string to the end of a string array in memory. Parameters are not changed.
+     * @return New string array with added string.
+     */
     function pushMemory(string[] memory stringArray, string memory newValue)
         internal
         pure

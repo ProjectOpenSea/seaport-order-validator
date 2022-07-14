@@ -550,7 +550,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone reverted"], []]);
+      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
     });
 
     it("zone revert2", async function () {
@@ -558,7 +558,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [2]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone reverted"], []]);
+      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
     });
 
     it("not a zone", async function () {
@@ -566,7 +566,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone reverted"], []]);
+      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
     });
   });
 

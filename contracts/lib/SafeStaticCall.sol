@@ -27,8 +27,13 @@ library SafeStaticCall {
         if (!success) return false;
         if (res.length != 32) return false;
 
-        for (uint256 i = 0; i < 12; i++) {
-            if (res[i] != 0) return false; // ensure only 20 bits are filled
+        if (
+            bytes32(res) &
+                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF !=
+            bytes32(res)
+        ) {
+            // Ensure only 20 bytes used
+            return false;
         }
 
         return abi.decode(res, (address)) == expectedReturn;
@@ -53,7 +58,15 @@ library SafeStaticCall {
     ) internal view returns (bool) {
         (bool success, bytes memory res) = target.staticcall(callData);
         if (!success) return false;
-        if (res.length != 4) return false;
+        if (res.length != 32) return false;
+        if (
+            bytes32(res) &
+                0xFFFFFFFF00000000000000000000000000000000000000000000000000000000 !=
+            bytes32(res)
+        ) {
+            // Ensure only 4 bytes used
+            return false;
+        }
 
         return abi.decode(res, (bytes4)) == expectedReturn;
     }

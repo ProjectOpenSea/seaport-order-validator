@@ -27,6 +27,9 @@ import {
 } from "./lib/ErrorsAndWarnings.sol";
 import { SafeStaticCall } from "./lib/SafeStaticCall.sol";
 import { Murky } from "./lib/Murky.sol";
+import {
+    RoyaltyEngineInterface
+} from "./interfaces/RoyaltyEngineInterface.sol";
 
 import "hardhat/console.sol";
 
@@ -38,12 +41,19 @@ contract SeaportValidator is ConsiderationTypeHashes {
         ConsiderationInterface(0x00000000006c3852cbEf3e08E8dF289169EdE581);
     ConduitControllerInterface constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
+    RoyaltyEngineInterface constant royaltyEngine =
+        RoyaltyEngineInterface(0x0385603ab55642cb4Dd5De3aE9e306809991804f);
     Murky immutable murky;
 
     constructor() {
         murky = new Murky();
     }
 
+    /**
+     * @notice Conduct a comprehensive validation of the given order.
+     * @param order The order to validate.
+     * @return errorsAndWarnings The errors and warnings found in the order.
+     */
     function isValidOrder(Order calldata order)
         external
         returns (ErrorsAndWarnings memory errorsAndWarnings)
@@ -74,6 +84,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         (, errorsAndWarnings) = getApprovalAddress(conduitKey);
     }
 
+    /**
+     * @notice Check the time validity of an order
+     * @param orderParameters The parameters for the order to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateTime(OrderParameters memory orderParameters)
         public
         view
@@ -114,6 +129,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    /**
+     * @notice Validate the status of an order
+     * @param orderParameters The parameters for the order to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateOrderStatus(OrderParameters memory orderParameters)
         public
         view
@@ -140,6 +160,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    /**
+     * @notice Validate all offer items for an order
+     * @param orderParameters The parameters for the order to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateOfferItems(OrderParameters memory orderParameters)
         public
         view
@@ -157,6 +182,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    /**
+     * @notice Validate all consideration items for an order
+     * @param orderParameters The parameters for the order to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateConsiderationItems(OrderParameters memory orderParameters)
         public
         view
@@ -175,6 +205,17 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    function validateFeeRecipients(OrderParameters memory orderParameters)
+        public
+        view
+    {}
+
+    /**
+     * @notice Validate a consideration item
+     * @param orderParameters The parameters for the order to validate
+     * @param considerationItemIndex The index of the consideration item to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateConsiderationItem(
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
@@ -189,6 +230,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         );
     }
 
+    /**
+     * @notice Validates the parameters of a consideration item including contract validation
+     * @param orderParameters The parameters for the order to validate
+     * @param considerationItemIndex The index of the consideration item to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
     function validateConsiderationItemParameters(
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
@@ -220,6 +267,19 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 errorsAndWarnings.addError("Invalid ERC721 token");
+            }
+
+            // Ensure that token exists. Will return false if owned by null address.
+            if (
+                !considerationItem.token.safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC721.ownerOf.selector,
+                        considerationItem.identifierOrCriteria
+                    ),
+                    1
+                )
+            ) {
+                errorsAndWarnings.addError("ERC721 token doesn't exist");
             }
         } else if (
             considerationItem.itemType == ItemType.ERC721_WITH_CRITERIA
@@ -278,6 +338,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    /**
+     * @notice Validates an offer item
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
     function validateOfferItem(
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
@@ -296,6 +362,13 @@ contract SeaportValidator is ConsiderationTypeHashes {
         );
     }
 
+    /**
+     * @notice Validates the OfferItem parameters. This includes token contract validation
+     * @dev OfferItems with critera are currently not allowed
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
     function validateOfferItemParameters(
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
@@ -316,14 +389,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
                 errorsAndWarnings.addError("Invalid ERC721 token");
             }
-        } else if (offerItem.itemType == ItemType.ERC721_WITH_CRITERIA) {
-            if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
-                errorsAndWarnings.addError("Invalid ERC721 token");
-            }
-        } else if (
-            offerItem.itemType == ItemType.ERC1155 ||
-            offerItem.itemType == ItemType.ERC1155_WITH_CRITERIA
-        ) {
+        } else if (offerItem.itemType == ItemType.ERC1155) {
             if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
                 errorsAndWarnings.addError("Invalid ERC1155 token");
             }
@@ -361,7 +427,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
-    // Won't work as expected if contracts are not as stated
+    /**
+     * @notice Validates the OfferItem approvals and balances
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
     function validateOfferItemApprovalAndBalance(
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
@@ -417,10 +488,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     errorsAndWarnings.addError("no token approval");
                 }
             }
-        } else if (
-            offerItem.itemType == ItemType.ERC1155 ||
-            offerItem.itemType == ItemType.ERC1155_WITH_CRITERIA
-        ) {
+        } else if (offerItem.itemType == ItemType.ERC1155) {
             IERC1155 token = IERC1155(offerItem.token);
 
             if (
@@ -500,6 +568,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
     }
 
     // TODO: Need to add support for order with extra data
+    /**
+     * @notice Validates the zone call for an order
+     * @param orderParameters The parameters for the order to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
     function isValidZone(OrderParameters memory orderParameters)
         public
         view
@@ -507,9 +580,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
     {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
-        ZoneInterface zone = ZoneInterface(orderParameters.zone);
-
-        if (address(zone).code.length == 0) {
+        if (address(orderParameters.zone).code.length == 0) {
             // Address is EOA. Valid order
             return errorsAndWarnings;
         }
@@ -518,22 +589,27 @@ contract SeaportValidator is ConsiderationTypeHashes {
             orderParameters.offerer
         );
 
-        try
-            zone.isValidOrder(
-                _deriveOrderHash(orderParameters, currentOffererCounter),
-                msg.sender, /* who should be caller? */
-                orderParameters.offerer,
-                orderParameters.zoneHash
+        if (
+            !orderParameters.zone.safeStaticCallBytes4(
+                abi.encodeWithSelector(
+                    ZoneInterface.isValidOrder.selector,
+                    _deriveOrderHash(orderParameters, currentOffererCounter),
+                    msg.sender, /* who should be caller? */
+                    orderParameters.offerer,
+                    orderParameters.zoneHash
+                ),
+                ZoneInterface.isValidOrder.selector
             )
-        returns (bytes4 zoneReturn) {
-            if (zoneReturn != ZoneInterface.isValidOrder.selector) {
-                errorsAndWarnings.addError("Zone rejected order");
-            }
-        } catch {
-            errorsAndWarnings.addError("Zone reverted");
+        ) {
+            errorsAndWarnings.addError("Zone rejected order");
         }
     }
 
+    /**
+     * @notice Gets the approval address for the given conduit key
+     * @param conduitKey Conduit key to get approval address for
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
     function getApprovalAddress(bytes32 conduitKey)
         public
         view
@@ -551,7 +627,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         return (conduitAddress, errorsAndWarnings);
     }
 
-    function checkInterface(address token, bytes4 interfaceId)
+    /**
+     * @notice Safely check that a contract implements an interface
+     * @param token The token address to check
+     * @param interfaceHash The interface hash to check
+     */
+    function checkInterface(address token, bytes4 interfaceHash)
         public
         view
         returns (bool)
@@ -560,7 +641,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             token.safeStaticCallBool(
                 abi.encodeWithSelector(
                     IERC165.supportsInterface.selector,
-                    interfaceId
+                    interfaceHash
                 ),
                 true
             );
