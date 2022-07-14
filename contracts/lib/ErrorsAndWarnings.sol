@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import { StringMemoryArray } from "./StringMemoryArrayLib.sol";
+import { StringMemoryArray } from "./StringMemoryArray.sol";
 
 pragma solidity ^0.8.10;
 
@@ -31,5 +31,21 @@ library ErrorsAndWarningsLib {
         pure
     {
         ew.warnings = ew.warnings.pushMemory(warn);
+    }
+
+    function hasErrors(ErrorsAndWarnings memory ew)
+        internal
+        pure
+        returns (bool)
+    {
+        return ew.errors.length != 0;
+    }
+
+    function hasWarnings(ErrorsAndWarnings memory ew)
+        internal
+        pure
+        returns (bool)
+    {
+        return ew.warnings.length != 0;
     }
 }

@@ -21,21 +21,28 @@ import { IERC721 } from "@openzeppelin/contracts/interfaces/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import { StringMemoryArray } from "./lib/StringMemoryArrayLib.sol";
 import {
     ErrorsAndWarnings,
     ErrorsAndWarningsLib
 } from "./lib/ErrorsAndWarnings.sol";
+import { SafeStaticCall } from "./lib/SafeStaticCall.sol";
+import { Murky } from "./lib/Murky.sol";
+
 import "hardhat/console.sol";
 
 contract SeaportValidator is ConsiderationTypeHashes {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
-    using StringMemoryArray for string[];
+    using SafeStaticCall for address;
 
     ConsiderationInterface constant seaport =
         ConsiderationInterface(0x00000000006c3852cbEf3e08E8dF289169EdE581);
     ConduitControllerInterface constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
+    Murky immutable murky;
+
+    constructor() {
+        murky = new Murky();
+    }
 
     function isValidOrder(Order calldata order)
         external
@@ -59,8 +66,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
-    function isValidConduit(bytes32 conduitKey) external view {
-        getApprovalAddress(conduitKey);
+    function isValidConduit(bytes32 conduitKey)
+        external
+        view
+        returns (ErrorsAndWarnings memory errorsAndWarnings)
+    {
+        (, errorsAndWarnings) = getApprovalAddress(conduitKey);
     }
 
     function validateTime(OrderParameters memory orderParameters)
@@ -69,13 +80,38 @@ contract SeaportValidator is ConsiderationTypeHashes {
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
+
+        if (orderParameters.endTime <= orderParameters.startTime) {
+            errorsAndWarnings.addError("endTime must be after startTime");
+            return errorsAndWarnings;
+        }
+
         if (orderParameters.endTime < block.timestamp) {
-            errorsAndWarnings.errors = errorsAndWarnings.errors.pushMemory(
-                "Order expired"
+            errorsAndWarnings.addError("Order expired");
+            return errorsAndWarnings;
+        } else if (orderParameters.endTime > block.timestamp + (30 weeks)) {
+            errorsAndWarnings.addWarning(
+                "Order will expire in more than 30 weeks"
             );
         }
 
-        // TODO: check if order is not yet started
+        if (orderParameters.startTime > block.timestamp) {
+            errorsAndWarnings.addWarning("Order not yet active");
+        }
+
+        if (
+            orderParameters.endTime -
+                (
+                    orderParameters.startTime > block.timestamp
+                        ? orderParameters.startTime
+                        : block.timestamp
+                ) <
+            30 minutes
+        ) {
+            errorsAndWarnings.addWarning(
+                "Order duration is less than 30 minutes"
+            );
+        }
     }
 
     function validateOrderStatus(OrderParameters memory orderParameters)
@@ -96,15 +132,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
             .getOrderStatus(orderHash);
         // Order is cancelled
         if (isCancelled) {
-            errorsAndWarnings.errors = errorsAndWarnings.errors.pushMemory(
-                "Order cancelled"
-            );
+            errorsAndWarnings.addError("Order cancelled");
         }
 
         if (totalSize > 0 && totalFilled == totalSize) {
-            errorsAndWarnings.errors = errorsAndWarnings.errors.pushMemory(
-                "Order is fully filled"
-            );
+            errorsAndWarnings.addError("Order is fully filled");
         }
     }
 
@@ -121,9 +153,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
         // You must have an offer item
         if (orderParameters.offer.length == 0) {
-            errorsAndWarnings.errors = errorsAndWarnings.errors.pushMemory(
-                "Need at least one offer item"
-            );
+            errorsAndWarnings.addError("Need at least one offer item");
         }
     }
 
@@ -138,6 +168,10 @@ contract SeaportValidator is ConsiderationTypeHashes {
             errorsAndWarnings.concat(
                 validateConsiderationItem(orderParameters, i)
             );
+        }
+
+        if (orderParameters.consideration.length == 0) {
+            errorsAndWarnings.addWarning("No consideration items");
         }
     }
 
@@ -215,17 +249,16 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 errorsAndWarnings.addError("ERC20 can not have identifier");
             }
 
-            // validate contract
-            (bool success, bytes memory res) = considerationItem
-                .token
-                .staticcall(
+            if (
+                !considerationItem.token.safeStaticCallUint256(
                     abi.encodeWithSelector(
                         IERC20.allowance.selector,
                         address(seaport),
                         address(seaport)
-                    )
-                );
-            if (!success || res.length == 0) {
+                    ),
+                    0
+                )
+            ) {
                 // Not an ERC20 token
                 errorsAndWarnings.addError("Invalid ERC20 token");
             }
@@ -249,11 +282,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
-
-        errorsAndWarnings.concat(
-            validateOfferItemParameters(orderParameters, offerItemIndex)
+        errorsAndWarnings = validateOfferItemParameters(
+            orderParameters,
+            offerItemIndex
         );
+        if (errorsAndWarnings.hasErrors()) {
+            // Only validate approvals and balances if parameters are valid
+            return errorsAndWarnings;
+        }
 
         errorsAndWarnings.concat(
             validateOfferItemApprovalAndBalance(orderParameters, offerItemIndex)
@@ -332,9 +368,13 @@ contract SeaportValidator is ConsiderationTypeHashes {
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
-        address approvalAddress = getApprovalAddress(
-            orderParameters.conduitKey
-        );
+        (
+            address approvalAddress,
+            ErrorsAndWarnings memory ew
+        ) = getApprovalAddress(orderParameters.conduitKey);
+
+        errorsAndWarnings.concat(ew);
+
         OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
 
         if (offerItem.itemType == ItemType.ERC721) {
@@ -343,8 +383,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
             // Check owner
             if (
-                !safeStaticCallAddress(
-                    address(token),
+                !address(token).safeStaticCallAddress(
                     abi.encodeWithSelector(
                         IERC721.ownerOf.selector,
                         offerItem.identifierOrCriteria
@@ -357,8 +396,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
             // Check approval
             if (
-                !safeStaticCallAddress(
-                    address(token),
+                !address(token).safeStaticCallAddress(
                     abi.encodeWithSelector(
                         IERC721.getApproved.selector,
                         offerItem.identifierOrCriteria
@@ -367,8 +405,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 if (
-                    !safeStaticCallBool(
-                        address(token),
+                    !address(token).safeStaticCallBool(
                         abi.encodeWithSelector(
                             IERC721.isApprovedForAll.selector,
                             orderParameters.offerer,
@@ -387,8 +424,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             IERC1155 token = IERC1155(offerItem.token);
 
             if (
-                !safeStaticCallBool(
-                    address(token),
+                !address(token).safeStaticCallBool(
                     abi.encodeWithSelector(
                         IERC721.isApprovedForAll.selector,
                         orderParameters.offerer,
@@ -400,38 +436,64 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 errorsAndWarnings.addError("no token approval");
             }
 
-            uint256 tokenBalance = token.balanceOf(
-                orderParameters.offerer,
-                offerItem.identifierOrCriteria
-            );
+            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
 
             if (
-                tokenBalance < offerItem.startAmount ||
-                tokenBalance < offerItem.endAmount
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC1155.balanceOf.selector,
+                        orderParameters.offerer,
+                        offerItem.identifierOrCriteria
+                    ),
+                    minBalance
+                )
             ) {
                 errorsAndWarnings.addError("insufficient token balance");
             }
         } else if (offerItem.itemType == ItemType.ERC20) {
             IERC20 token = IERC20(offerItem.token);
 
-            uint256 tokenAllowance = token.allowance(
-                orderParameters.offerer,
-                approvalAddress
-            );
+            uint256 minBalanceAndAllowance = offerItem.startAmount <
+                offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
+
             if (
-                tokenAllowance < offerItem.startAmount ||
-                tokenAllowance < offerItem.endAmount
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC20.allowance.selector,
+                        orderParameters.offerer,
+                        approvalAddress
+                    ),
+                    minBalanceAndAllowance
+                )
             ) {
                 errorsAndWarnings.addError("insufficient token allowance");
             }
 
-            uint256 tokenBalance = token.balanceOf(orderParameters.offerer);
             if (
-                tokenBalance < offerItem.startAmount ||
-                tokenBalance < offerItem.endAmount
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC20.balanceOf.selector,
+                        orderParameters.offerer
+                    ),
+                    minBalanceAndAllowance
+                )
             ) {
                 errorsAndWarnings.addError("insufficient token balance");
             }
+        } else if (offerItem.itemType == ItemType.NATIVE) {
+            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
+
+            if (orderParameters.offerer.balance < minBalance) {
+                errorsAndWarnings.addError("insufficient token balance");
+            }
+
+            errorsAndWarnings.addWarning("ETH offer item");
         } else {
             errorsAndWarnings.addError("invalid item type");
         }
@@ -475,14 +537,18 @@ contract SeaportValidator is ConsiderationTypeHashes {
     function getApprovalAddress(bytes32 conduitKey)
         public
         view
-        returns (address)
+        returns (address, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        if (conduitKey == 0) return address(seaport);
+        errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
+        if (conduitKey == 0) return (address(seaport), errorsAndWarnings);
         (address conduitAddress, bool exists) = conduitController.getConduit(
             conduitKey
         );
-        if (!exists) revert("invalid conduit key");
-        return conduitAddress;
+        if (!exists) {
+            errorsAndWarnings.addError("invalid conduit key");
+            conduitAddress = address(0); // Don't return invalid conduit
+        }
+        return (conduitAddress, errorsAndWarnings);
     }
 
     function checkInterface(address token, bytes4 interfaceId)
@@ -491,8 +557,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         returns (bool)
     {
         return
-            safeStaticCallBool(
-                token,
+            token.safeStaticCallBool(
                 abi.encodeWithSelector(
                     IERC165.supportsInterface.selector,
                     interfaceId
@@ -501,80 +566,49 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
     }
 
-    function safeStaticCallBool(
-        address target,
-        bytes memory callData,
-        bool expectedReturn
-    ) public view returns (bool) {
-        (bool success, bytes memory res) = target.staticcall(callData);
-        if (!success) return false;
-        if (res.length != 32) return false;
-
-        for (uint256 i = 0; i < 31; i++) {
-            if (res[i] != 0) return false;
-        }
-
-        return expectedReturn ? res[31] == 0x01 : res[31] == 0;
-    }
-
-    function safeStaticCallAddress(
-        address target,
-        bytes memory callData,
-        address expectedReturn
-    ) public view returns (bool) {
-        (bool success, bytes memory res) = target.staticcall(callData);
-        if (!success) return false;
-        if (res.length != 32) return false;
-
-        for (uint256 i = 0; i < 12; i++) {
-            if (res[i] != 0) return false; // ensure only 20 bits are filled
-        }
-
-        return abi.decode(res, (address)) == expectedReturn;
-    }
-
-    function safeStaticCallUint256(
-        address target,
-        bytes memory callData,
-        uint256 expectedReturn
-    ) public view returns (bool) {
-        (bool success, bytes memory res) = target.staticcall(callData);
-        if (!success) return false;
-        if (res.length != 32) return false;
-
-        return abi.decode(res, (uint256)) == expectedReturn;
-    }
-
-    function pushMemoryArray(
-        string[] memory stringArray,
-        string memory newValue
-    ) internal pure returns (string[] memory) {
-        string[] memory returnValue = new string[](stringArray.length + 1);
-
-        for (uint256 i = 0; i < stringArray.length; i++) {
-            returnValue[i] = stringArray[i];
-        }
-        returnValue[stringArray.length] = newValue;
-
-        return returnValue;
-    }
-
-    function concatMemoryArrays(string[] memory array1, string[] memory array2)
-        internal
-        pure
-        returns (string[] memory)
+    function getMerkleProof(
+        uint256[] memory includedTokens,
+        uint256 targetIndex
+    )
+        public
+        view
+        returns (
+            bytes32[] memory merkleProof,
+            ErrorsAndWarnings memory errorsAndWarnings
+        )
     {
-        string[] memory returnValue = new string[](
-            array1.length + array2.length
+        errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
+
+        (bool success, bytes memory res) = address(murky).staticcall(
+            abi.encodeWithSelector(
+                murky.getProof.selector,
+                includedTokens,
+                targetIndex
+            )
         );
-
-        for (uint256 i = 0; i < array1.length; i++) {
-            returnValue[i] = array1[i];
-        }
-        for (uint256 i = 0; i < array2.length; i++) {
-            returnValue[i + array1.length] = array2[i];
+        if (!success) {
+            errorsAndWarnings.addError("merkle proof retrieval failed");
+            return (new bytes32[](0), errorsAndWarnings);
         }
 
-        return returnValue;
+        return (abi.decode(res, (bytes32[])), errorsAndWarnings);
+    }
+
+    function getMerkleRoot(uint256[] memory includedTokens)
+        public
+        view
+        returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
+    {
+        errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
+
+        (bool success, bytes memory res) = address(murky).staticcall(
+            abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
+        );
+        if (!success) {
+            errorsAndWarnings.addError("merkle root retrieval failed");
+            return (0, errorsAndWarnings);
+        }
+
+        return (abi.decode(res, (bytes32)), errorsAndWarnings);
     }
 }

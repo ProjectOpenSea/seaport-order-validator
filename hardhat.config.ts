@@ -5,6 +5,7 @@ const config: HardhatUserConfig = {
   solidity: "0.8.14",
   networks: {
     hardhat: {
+      allowUnlimitedContractSize: true,
       chainId: 1,
       forking: {
         enabled: true,
