@@ -617,6 +617,6 @@ describe("Validate Orders", function () {
     it("Test", async function () {
       const res = await validator.getMerkleRoot([...Array(10000).keys()]);
       console.log(res);
-    });
+    }).timeout(8000);
   });
 });
