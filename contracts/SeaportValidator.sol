@@ -33,6 +33,16 @@ import {
 
 import "hardhat/console.sol";
 
+/**
+ * @title SeaportValidator
+ * @notice SeaportValidator validates simple orders that adhere to a set of rules defined below:
+ *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
+ *    - The first consideration is the primary consideration.
+ *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is royalty fee.
+ *    - In private orders, the last consideration specifies a recipient for the offer item.
+ *    - Offer items must be owned and properly approved by the offerer.
+ *    - Consideration items must exist.
+ */
 contract SeaportValidator is ConsiderationTypeHashes {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using SafeStaticCall for address;
@@ -194,21 +204,144 @@ contract SeaportValidator is ConsiderationTypeHashes {
     {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
+        if (orderParameters.consideration.length == 0) {
+            errorsAndWarnings.addError("No consideration items");
+            return errorsAndWarnings;
+        }
+
         for (uint256 i = 0; i < orderParameters.consideration.length; i++) {
             errorsAndWarnings.concat(
                 validateConsiderationItem(orderParameters, i)
             );
         }
 
-        if (orderParameters.consideration.length == 0) {
-            errorsAndWarnings.addWarning("No consideration items");
-        }
+        validateFeeRecipients(orderParameters, address(0), 0);
     }
 
-    function validateFeeRecipients(OrderParameters memory orderParameters)
-        public
-        view
-    {}
+    function validateFeeRecipients(
+        OrderParameters memory orderParameters,
+        address protocolFeeRecipient,
+        uint256 protocolFeeBips
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
+
+        address feeToken;
+        address assetAddress;
+        uint256 assetIdentifier;
+        uint256 transactionAmountStart;
+        uint256 transactionAmountEnd;
+
+        if (
+            orderParameters.offer[0].itemType == ItemType.ERC20 ||
+            orderParameters.offer[0].itemType == ItemType.NATIVE
+        ) {
+            // Offer is a bid
+            feeToken = orderParameters.offer[0].token;
+            transactionAmountStart = orderParameters.offer[0].startAmount;
+            transactionAmountEnd = orderParameters.offer[0].endAmount;
+
+            assetAddress = orderParameters.consideration[0].token;
+            assetIdentifier = orderParameters
+                .consideration[0]
+                .identifierOrCriteria;
+        } else {
+            // TODO: Ensure that order is a bid or ask elsewhere
+
+            // Assume order must be an ask
+            feeToken = orderParameters.consideration[0].token;
+            transactionAmountStart = orderParameters
+                .consideration[0]
+                .startAmount;
+            transactionAmountEnd = orderParameters.consideration[0].endAmount;
+
+            assetAddress = orderParameters.offer[0].token;
+            assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
+        }
+
+        if (protocolFeeBips != 0) {
+            // Check protocol fee
+            ConsiderationItem memory protocolFeeItem = orderParameters
+                .consideration[1];
+            if (protocolFeeItem.token != feeToken) {
+                errorsAndWarnings.addError("Protocol fee token mismatch");
+            }
+            if (
+                protocolFeeItem.startAmount <
+                (transactionAmountStart * protocolFeeBips) / 10000
+            ) {
+                errorsAndWarnings.addError("Protocol fee start amount too low");
+            }
+            if (
+                protocolFeeItem.endAmount <
+                (transactionAmountEnd * protocolFeeBips) / 10000
+            ) {
+                errorsAndWarnings.addError("Protocol fee end amount too low");
+            }
+            if (protocolFeeItem.recipient != protocolFeeRecipient) {
+                errorsAndWarnings.addError("Protocol fee recipient mismatch");
+            }
+        }
+
+        address royaltyRecipient;
+        uint256 royaltyAmountStart;
+        uint256 royaltyAmountEnd;
+
+        {
+            (
+                address payable[] memory royaltyRecipients,
+                uint256[] memory royaltyAmountsStart
+            ) = royaltyEngine.getRoyaltyView(
+                    assetAddress,
+                    assetIdentifier,
+                    transactionAmountStart
+                );
+            if (royaltyRecipients.length != 0) {
+                royaltyRecipient = royaltyRecipients[0];
+                royaltyAmountStart = royaltyAmountsStart[0];
+
+                (, uint256[] memory royaltyAmountsEnd) = royaltyEngine
+                    .getRoyaltyView(
+                        assetAddress,
+                        assetIdentifier,
+                        transactionAmountEnd
+                    );
+                royaltyAmountEnd = royaltyAmountsEnd[0];
+            }
+        }
+
+        if (royaltyRecipient != address(0)) {
+            uint16 royaltyConsiderationIndex = 1 + protocolFeeBips != 0 ? 1 : 0; // 2 if protocol fee, ow 1
+
+            // Check that royalty consideration item exists
+            if (
+                orderParameters.consideration.length - 1 <
+                royaltyConsiderationIndex
+            ) {
+                errorsAndWarnings.addWarning(
+                    "Missing royalty fee consideration item"
+                );
+                return errorsAndWarnings;
+            }
+
+            ConsiderationItem memory royaltyFeeItem = orderParameters
+                .consideration[royaltyConsiderationIndex];
+
+            if (royaltyFeeItem.token != feeToken) {
+                errorsAndWarnings.addWarning("Royalty fee token mismatch");
+            }
+            if (royaltyFeeItem.startAmount < royaltyAmountStart) {
+                errorsAndWarnings.addWarning(
+                    "Royalty fee start amount too low"
+                );
+            }
+            if (royaltyFeeItem.endAmount < royaltyAmountEnd) {
+                errorsAndWarnings.addWarning("Royalty fee end amount too low");
+            }
+            if (royaltyFeeItem.recipient != royaltyRecipient) {
+                errorsAndWarnings.addWarning("Royalty fee recipient mismatch");
+            }
+        }
+    }
 
     /**
      * @notice Validate a consideration item
