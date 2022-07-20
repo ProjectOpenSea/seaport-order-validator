@@ -5,6 +5,7 @@ import { ethers } from "hardhat";
 
 import {
   CROSS_CHAIN_SEAPORT_ADDRESS,
+  EIP_712_ORDER_TYPE,
   EMPTY_BYTES32,
   ItemType,
   NULL_ADDRESS,
@@ -14,6 +15,7 @@ import {
 } from "./constants";
 
 import type {
+  ConsiderationInterface,
   SeaportValidator,
   TestERC1155,
   TestERC721,
@@ -23,6 +25,7 @@ import type {
   OrderParametersStruct,
   OrderStruct,
 } from "../typechain-types/contracts/SeaportValidator";
+import type { OrderComponentsStruct } from "../typechain-types/contracts/interfaces/ConsiderationInterface";
 import type { TestERC20 } from "../typechain-types/contracts/test/TestERC20";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
@@ -30,12 +33,20 @@ describe("Validate Orders", function () {
   const coder = new ethers.utils.AbiCoder();
   let baseOrderParameters: OrderParametersStruct;
   let validator: SeaportValidator;
+  let seaport: ConsiderationInterface;
   let owner: SignerWithAddress;
   let otherAccounts: SignerWithAddress[];
   let erc721_1: TestERC721;
   let erc721_2: TestERC721;
   let erc1155_1: TestERC1155;
   let erc20_1: TestERC20;
+
+  before(async function () {
+    seaport = await ethers.getContractAt(
+      "ConsiderationInterface",
+      CROSS_CHAIN_SEAPORT_ADDRESS
+    );
+  });
 
   async function deployFixture() {
     const [owner, ...otherAccounts] = await ethers.getSigners();
@@ -46,6 +57,7 @@ describe("Validate Orders", function () {
     const TestERC20Factory = await ethers.getContractFactory("TestERC20");
 
     const validator = await Validator.deploy();
+
     const erc721_1 = await TestERC721Factory.deploy("NFT1", "NFT1");
     const erc721_2 = await TestERC721Factory.deploy("NFT2", "NFT2");
     const erc1155_1 = await TestERC1155Factory.deploy("uri_here");
@@ -105,7 +117,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.have.deep.property("errors", ["Order expired"]);
+      ).to.include.deep.ordered.members([["Order expired"], []]);
     });
 
     it("Order not yet active", async function () {
@@ -176,7 +188,33 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOfferItems(order.parameters)
-      ).to.have.deep.property("errors", ["Need at least one offer item"]);
+      ).to.include.deep.ordered.members([["Need at least one offer item"], []]);
+    });
+
+    it("more than one offer items", async function () {
+      await erc20_1.mint(owner.address, "4");
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, "4");
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "2",
+          endAmount: "2",
+        },
+      ];
+
+      expect(
+        await validator.validateOfferItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([[], ["More than one offer item"]]);
     });
 
     it("ETH offer warning", async function () {
@@ -239,7 +277,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["no token approval"]);
+        ).to.include.deep.ordered.members([["no token approval"], []]);
       });
 
       it("Not owner", async function () {
@@ -258,17 +296,17 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", [
-          "not owner of token",
-          "no token approval",
+        ).to.include.deep.ordered.members([
+          ["not owner of token", "no token approval"],
+          [],
         ]);
 
         await erc721_1.mint(otherAccounts[0].address, 2);
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", [
-          "not owner of token",
-          "no token approval",
+        ).to.include.deep.ordered.members([
+          ["not owner of token", "no token approval"],
+          [],
         ]);
       });
 
@@ -291,7 +329,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", []);
+        ).to.include.deep.ordered.members([[], []]);
       });
 
       it("Set approval for one", async function () {
@@ -313,7 +351,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", []);
+        ).to.include.deep.ordered.members([[], []]);
       });
 
       it("Invalid token: contract", async function () {
@@ -332,7 +370,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["Invalid ERC721 token"]);
+        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
       });
 
       it("Invalid token: null address", async function () {
@@ -351,7 +389,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["Invalid ERC721 token"]);
+        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
       });
 
       it("Invalid token: eoa", async function () {
@@ -370,7 +408,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["Invalid ERC721 token"]);
+        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
       });
     });
 
@@ -393,7 +431,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["no token approval"]);
+        ).to.include.deep.ordered.members([["no token approval"], []]);
       });
 
       it("Insufficient amount", async function () {
@@ -412,9 +450,9 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", [
-          "no token approval",
-          "insufficient token balance",
+        ).to.include.deep.ordered.members([
+          ["no token approval", "insufficient token balance"],
+          [],
         ]);
       });
 
@@ -437,7 +475,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", []);
+        ).to.include.deep.ordered.members([[], []]);
       });
     });
 
@@ -460,7 +498,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", ["insufficient token allowance"]);
+        ).to.include.deep.ordered.members([
+          ["insufficient token allowance"],
+          [],
+        ]);
       });
 
       it("Insufficient amount", async function () {
@@ -480,9 +521,9 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", [
-          "insufficient token allowance",
-          "insufficient token balance",
+        ).to.include.deep.ordered.members([
+          ["insufficient token allowance", "insufficient token balance"],
+          [],
         ]);
       });
 
@@ -505,7 +546,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.have.deep.property("errors", []);
+        ).to.include.deep.ordered.members([[], []]);
       });
     });
   });
@@ -616,7 +657,165 @@ describe("Validate Orders", function () {
   describe("Create Merkle Tree", function () {
     it("Test", async function () {
       const res = await validator.getMerkleRoot([...Array(10000).keys()]);
-      console.log(res);
-    }).timeout(8000);
+    }).timeout(30000);
   });
+
+  describe("Validate Status", async function () {
+    it("fully filled", async function () {
+      await erc20_1.mint(otherAccounts[0].address, 2000);
+      await erc20_1
+        .connect(otherAccounts[0])
+        .approve(CROSS_CHAIN_SEAPORT_ADDRESS, 2000);
+
+      baseOrderParameters.offerer = otherAccounts[0].address;
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order: OrderStruct = await signOrder(
+        baseOrderParameters,
+        otherAccounts[0]
+      );
+
+      await seaport.fulfillOrder(order, EMPTY_BYTES32);
+
+      expect(
+        await validator.validateOrderStatus(baseOrderParameters)
+      ).to.include.deep.ordered.members([["Order is fully filled"], []]);
+    });
+
+    it("Order Cancelled", async function () {
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      await seaport.cancel([
+        await getOrderComponents(baseOrderParameters, owner),
+      ]);
+
+      expect(
+        await validator.validateOrderStatus(baseOrderParameters)
+      ).to.include.deep.ordered.members([["Order cancelled"], []]);
+    });
+  });
+
+  describe("Full Scope", function () {
+    it("success", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      const order: OrderStruct = {
+        parameters: baseOrderParameters,
+        signature: "0x",
+      };
+
+      await seaport.validate([order]);
+
+      expect(
+        await validator.callStatic.isValidOrder(order)
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("no sig", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      const order: OrderStruct = {
+        parameters: baseOrderParameters,
+        signature: "0x",
+      };
+
+      expect(
+        await validator.callStatic.isValidOrder(order)
+      ).to.include.deep.ordered.members([["invalid signature"], []]);
+    });
+  });
+
+  async function signOrder(
+    orderParameters: OrderParametersStruct,
+    signer: SignerWithAddress
+  ): Promise<OrderStruct> {
+    const sig = await signer._signTypedData(
+      {
+        name: "Seaport",
+        version: "1.1",
+        chainId: "1",
+        verifyingContract: seaport.address,
+      },
+      EIP_712_ORDER_TYPE,
+      await getOrderComponents(orderParameters, signer)
+    );
+
+    return {
+      parameters: baseOrderParameters,
+      signature: sig,
+    };
+  }
+
+  async function getOrderComponents(
+    orderParameters: OrderParametersStruct,
+    signer: SignerWithAddress
+  ): Promise<OrderComponentsStruct> {
+    return {
+      ...orderParameters,
+      counter: await seaport.getCounter(signer.address),
+    };
+  }
 });

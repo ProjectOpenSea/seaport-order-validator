@@ -80,9 +80,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         orders[0] = order;
 
         // Sucessfull if sig valid or validated on chain
-        try seaport.validate(orders) {} catch {
-            // Not validated on chain, and sig not currently valid
-            errorsAndWarnings.addError("invalid signature");
+        if (!errorsAndWarnings.hasErrors()) {
+            try seaport.validate(orders) {} catch {
+                // Not validated on chain, and sig not currently valid
+                errorsAndWarnings.addError("invalid signature");
+            }
         }
     }
 
@@ -190,6 +192,10 @@ contract SeaportValidator is ConsiderationTypeHashes {
         if (orderParameters.offer.length == 0) {
             errorsAndWarnings.addError("Need at least one offer item");
         }
+
+        if (orderParameters.offer.length > 1) {
+            errorsAndWarnings.addWarning("More than one offer item");
+        }
     }
 
     /**
@@ -205,7 +211,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
         if (orderParameters.consideration.length == 0) {
-            errorsAndWarnings.addError("No consideration items");
+            errorsAndWarnings.addWarning("No consideration items");
             return errorsAndWarnings;
         }
 
@@ -216,6 +222,10 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         validateFeeRecipients(orderParameters, address(0), 0);
+
+        if (orderParameters.consideration.length > 4) {
+            errorsAndWarnings.addWarning("More than four consideration items");
+        }
     }
 
     function validateFeeRecipients(
