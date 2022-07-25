@@ -245,6 +245,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
     }
 
+    /**
+     * @notice Validates the protocol and royalty fee recipients for an order.
+     *    Only checks first fee recipient provided by RoyaltyRegistry.
+     * @param orderParameters The parameters for the order to validate.
+     * @param protocolFeeRecipient The protocol fee recipient.
+     * @param protocolFeeBips The protocol fee in BIPs.
+     * @return errorsAndWarnings The errors and warnings.
+     */
     function validateFeeRecipients(
         OrderParameters memory orderParameters,
         address protocolFeeRecipient,
