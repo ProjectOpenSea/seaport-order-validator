@@ -36,6 +36,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 29 | Zone rejected order |
 | 30 | Conduit key invalid |
 | 31 | Merkle proof error |
+| 32 | Fees uncheckable due to order format. Unable to check required protocol fee. |
 
 ## Warning Codes
 | Code | Warning |
@@ -53,3 +54,4 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 10 | Royalty fee start amount too low |
 | 11 | Royalty fee end amount too low |
 | 12 | Royalty fee recipient incorrect |
+| 13 | Fees uncheckable due to order format |

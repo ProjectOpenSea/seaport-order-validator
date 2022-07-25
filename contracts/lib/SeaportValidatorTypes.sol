@@ -39,7 +39,8 @@ enum ValidationError {
     NativeInsufficientBalance,
     ZoneRejectedOrder,
     ConduitKeyInvalid,
-    MerkleProofError
+    MerkleProofError,
+    FeesUncheckable
 }
 
 enum ValidationWarning {
@@ -55,5 +56,6 @@ enum ValidationWarning {
     RoyaltyFee_Token,
     RoyaltyFee_StartAmount,
     RoyaltyFee_EndAmount,
-    RoyaltyFee_Recipient
+    RoyaltyFee_Recipient,
+    FeesUncheckable
 }

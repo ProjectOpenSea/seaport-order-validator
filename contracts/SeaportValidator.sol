@@ -275,10 +275,36 @@ contract SeaportValidator is ConsiderationTypeHashes {
         uint256 transactionAmountStart;
         uint256 transactionAmountEnd;
 
-        if (
-            orderParameters.offer[0].itemType == ItemType.ERC20 ||
-            orderParameters.offer[0].itemType == ItemType.NATIVE
-        ) {
+        {
+            bool canCheckFee = true;
+            if (
+                orderParameters.offer.length != 1 ||
+                orderParameters.consideration.length > 3 ||
+                orderParameters.consideration.length == 0
+            ) {
+                // Not bid or ask, can't check fees
+                canCheckFee = false;
+            } else if (
+                isPaymentToken(orderParameters.offer[0].itemType) &&
+                isPaymentToken(orderParameters.consideration[0].itemType)
+            ) {
+                // Not bid or ask, can't check fees
+                canCheckFee = false;
+            }
+            if (!canCheckFee) {
+                if (protocolFeeBips != 0) {
+                    // Error since can't check protocol fee
+                    errorsAndWarnings.addError(ValidationError.FeesUncheckable);
+                } else {
+                    errorsAndWarnings.addWarning(
+                        ValidationWarning.FeesUncheckable
+                    );
+                }
+                return errorsAndWarnings;
+            }
+        }
+
+        if (isPaymentToken(orderParameters.offer[0].itemType)) {
             // Offer is a bid
             feeItemType = orderParameters.offer[0].itemType;
             feeToken = orderParameters.offer[0].token;
@@ -290,8 +316,6 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 .consideration[0]
                 .identifierOrCriteria;
         } else {
-            // TODO: Ensure that order is a bid or ask elsewhere
-
             // Assume order must be an ask
             feeItemType = orderParameters.consideration[0].itemType;
             feeToken = orderParameters.consideration[0].token;
@@ -911,5 +935,9 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         return (abi.decode(res, (bytes32)), errorsAndWarnings);
+    }
+
+    function isPaymentToken(ItemType itemType) public pure returns (bool) {
+        return itemType == ItemType.NATIVE || itemType == ItemType.ERC20;
     }
 }

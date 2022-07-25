@@ -704,7 +704,7 @@ describe("Validate Orders", function () {
   describe("Create Merkle Tree", function () {
     it("Test", async function () {
       const res = await validator.getMerkleRoot([...Array(10000).keys()]);
-    }).timeout(30000);
+    }).timeout(60000);
   });
 
   describe("Validate Status", async function () {
@@ -1281,7 +1281,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.callStatic.isValidOrder(order)
-      ).to.include.deep.ordered.members([[ValidationError.ZeroOfferItems], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ZeroOfferItems],
+        [ValidationWarning.FeesUncheckable],
+      ]);
     });
 
     it("zero offer amount and invalid consideration token", async function () {

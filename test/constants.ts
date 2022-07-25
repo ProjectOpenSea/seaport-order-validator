@@ -126,6 +126,7 @@ export enum ValidationError {
   ZoneRejectedOrder,
   ConduitKeyInvalid,
   MerkleProofError,
+  FeesUncheckable,
 }
 
 export enum ValidationWarning {
@@ -142,4 +143,5 @@ export enum ValidationWarning {
   RoyaltyFee_StartAmount,
   RoyaltyFee_EndAmount,
   RoyaltyFee_Recipient,
+  FeesUncheckable,
 }
