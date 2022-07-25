@@ -42,3 +42,19 @@ enum ValidationError {
     ConduitKeyInvalid,
     MerkleProofError
 }
+
+enum ValidationWarning {
+    Time_DistantExpiration,
+    Time_NotActive,
+    Time_ShortOrder,
+    Offer_MoreThanOneItem,
+    Consideration_ZeroItems,
+    Consideration_MoreThanFourItems,
+    Offer_NativeItem,
+    RoyaltyFee_Missing,
+    RoyaltyFee_ItemType,
+    RoyaltyFee_Token,
+    RoyaltyFee_StartAmount,
+    RoyaltyFee_EndAmount,
+    RoyaltyFee_Recipient
+}

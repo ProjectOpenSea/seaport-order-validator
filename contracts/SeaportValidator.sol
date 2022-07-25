@@ -31,8 +31,9 @@ import {
     RoyaltyEngineInterface
 } from "./interfaces/RoyaltyEngineInterface.sol";
 import {
+    ValidationConfiguration,
     ValidationError,
-    ValidationConfiguration
+    ValidationWarning
 } from "./lib/SeaportValidatorTypes.sol";
 
 import "hardhat/console.sol";
@@ -83,7 +84,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         Order memory order,
         ValidationConfiguration memory validationConfiguration
     ) public returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         errorsAndWarnings.concat(validateTime(order.parameters));
         errorsAndWarnings.concat(validateOfferItems(order.parameters));
@@ -128,7 +129,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         if (orderParameters.endTime <= orderParameters.startTime) {
             errorsAndWarnings.addError(ValidationError.EndTimeBeforeStartTime);
@@ -140,12 +141,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
             return errorsAndWarnings;
         } else if (orderParameters.endTime > block.timestamp + (30 weeks)) {
             errorsAndWarnings.addWarning(
-                "Order will expire in more than 30 weeks"
+                ValidationWarning.Time_DistantExpiration
             );
         }
 
         if (orderParameters.startTime > block.timestamp) {
-            errorsAndWarnings.addWarning("Order not yet active");
+            errorsAndWarnings.addWarning(ValidationWarning.Time_NotActive);
         }
 
         if (
@@ -157,9 +158,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 ) <
             30 minutes
         ) {
-            errorsAndWarnings.addWarning(
-                "Order duration is less than 30 minutes"
-            );
+            errorsAndWarnings.addWarning(ValidationWarning.Time_ShortOrder);
         }
     }
 
@@ -173,7 +172,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         uint256 currentOffererCounter = seaport.getCounter(
             orderParameters.offerer
@@ -204,7 +203,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         for (uint256 i = 0; i < orderParameters.offer.length; i++) {
             errorsAndWarnings.concat(validateOfferItem(orderParameters, i));
@@ -216,7 +215,9 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         if (orderParameters.offer.length > 1) {
-            errorsAndWarnings.addWarning("More than one offer item");
+            errorsAndWarnings.addWarning(
+                ValidationWarning.Offer_MoreThanOneItem
+            );
         }
     }
 
@@ -230,10 +231,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         if (orderParameters.consideration.length == 0) {
-            errorsAndWarnings.addWarning("No consideration items");
+            errorsAndWarnings.addWarning(
+                ValidationWarning.Consideration_ZeroItems
+            );
             return errorsAndWarnings;
         }
 
@@ -244,7 +247,9 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         if (orderParameters.consideration.length > 4) {
-            errorsAndWarnings.addWarning("More than four consideration items");
+            errorsAndWarnings.addWarning(
+                ValidationWarning.Consideration_MoreThanFourItems
+            );
         }
     }
 
@@ -261,7 +266,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         address protocolFeeRecipient,
         uint256 protocolFeeBips
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         address feeToken;
         address assetAddress;
@@ -306,6 +311,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
             if (protocolFeeItem.itemType != feeItemType) {
                 errorsAndWarnings.addError(ValidationError.ProtocolFeeItemType);
+                return errorsAndWarnings;
             }
 
             if (protocolFeeItem.token != feeToken) {
@@ -370,7 +376,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 royaltyConsiderationIndex
             ) {
                 errorsAndWarnings.addWarning(
-                    "Missing royalty fee consideration item"
+                    ValidationWarning.RoyaltyFee_Missing
                 );
                 return errorsAndWarnings;
             }
@@ -378,19 +384,31 @@ contract SeaportValidator is ConsiderationTypeHashes {
             ConsiderationItem memory royaltyFeeItem = orderParameters
                 .consideration[royaltyConsiderationIndex];
 
+            if (royaltyFeeItem.itemType != feeItemType) {
+                errorsAndWarnings.addWarning(
+                    ValidationWarning.RoyaltyFee_ItemType
+                );
+                return errorsAndWarnings;
+            }
             if (royaltyFeeItem.token != feeToken) {
-                errorsAndWarnings.addWarning("Royalty fee token mismatch");
+                errorsAndWarnings.addWarning(
+                    ValidationWarning.RoyaltyFee_Token
+                );
             }
             if (royaltyFeeItem.startAmount < royaltyAmountStart) {
                 errorsAndWarnings.addWarning(
-                    "Royalty fee start amount too low"
+                    ValidationWarning.RoyaltyFee_StartAmount
                 );
             }
             if (royaltyFeeItem.endAmount < royaltyAmountEnd) {
-                errorsAndWarnings.addWarning("Royalty fee end amount too low");
+                errorsAndWarnings.addWarning(
+                    ValidationWarning.RoyaltyFee_EndAmount
+                );
             }
             if (royaltyFeeItem.recipient != royaltyRecipient) {
-                errorsAndWarnings.addWarning("Royalty fee recipient mismatch");
+                errorsAndWarnings.addWarning(
+                    ValidationWarning.RoyaltyFee_Recipient
+                );
             }
         }
     }
@@ -405,7 +423,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         errorsAndWarnings.concat(
             validateConsiderationItemParameters(
@@ -425,7 +443,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         ConsiderationItem memory considerationItem = orderParameters
             .consideration[considerationItemIndex];
@@ -452,6 +470,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 errorsAndWarnings.addError(ValidationError.ERC721InvalidToken);
+                return errorsAndWarnings;
             }
 
             // Ensure that token exists. Will return false if owned by null address.
@@ -558,7 +577,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
 
@@ -624,7 +643,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         // Note: If multiple items are of the same token, token amounts are not summed for validation
 
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         (
             address approvalAddress,
@@ -758,7 +777,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 );
             }
 
-            errorsAndWarnings.addWarning("Native offer item");
+            errorsAndWarnings.addWarning(ValidationWarning.Offer_NativeItem);
         } else {
             errorsAndWarnings.addError(ValidationError.InvalidItemType);
         }
@@ -775,7 +794,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         if (address(orderParameters.zone).code.length == 0) {
             // Address is EOA. Valid order
@@ -812,7 +831,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (address, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
         if (conduitKey == 0) return (address(seaport), errorsAndWarnings);
         (address conduitAddress, bool exists) = conduitController.getConduit(
             conduitKey
@@ -855,7 +874,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             ErrorsAndWarnings memory errorsAndWarnings
         )
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         (bool success, bytes memory res) = address(murky).staticcall(
             abi.encodeWithSelector(
@@ -877,7 +896,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         view
         returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new string[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         (bool success, bytes memory res) = address(murky).staticcall(
             abi.encodeWithSelector(murky.getRoot.selector, includedTokens)

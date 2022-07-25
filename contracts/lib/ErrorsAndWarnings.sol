@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
-import { StringMemoryArray } from "./StringMemoryArray.sol";
-import { ValidationError } from "./SeaportValidatorTypes.sol";
+import {
+    ValidationError,
+    ValidationWarning
+} from "./SeaportValidatorTypes.sol";
 
 pragma solidity ^0.8.10;
 
 struct ErrorsAndWarnings {
     uint8[] errors;
-    string[] warnings;
+    uint8[] warnings;
 }
 
 library ErrorsAndWarningsLib {
-    using StringMemoryArray for string[];
-
     function concat(ErrorsAndWarnings memory ew1, ErrorsAndWarnings memory ew2)
         internal
         pure
     {
         ew1.errors = concatMemory(ew1.errors, ew2.errors);
-        ew1.warnings = ew1.warnings.concatMemory(ew2.warnings);
+        ew1.warnings = concatMemory(ew1.warnings, ew2.warnings);
     }
 
     function addError(ErrorsAndWarnings memory ew, ValidationError err)
@@ -27,11 +27,11 @@ library ErrorsAndWarningsLib {
         ew.errors = pushMemory(ew.errors, uint8(err));
     }
 
-    function addWarning(ErrorsAndWarnings memory ew, string memory warn)
+    function addWarning(ErrorsAndWarnings memory ew, ValidationWarning warn)
         internal
         pure
     {
-        ew.warnings = ew.warnings.pushMemory(warn);
+        ew.warnings = pushMemory(ew.warnings, uint8(warn));
     }
 
     function hasErrors(ErrorsAndWarnings memory ew)
