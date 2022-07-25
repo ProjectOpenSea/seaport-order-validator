@@ -1,4 +1,3 @@
-import { BigNumberish } from "@ethersproject/bignumber/lib/bignumber";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -12,6 +11,8 @@ import {
   OPENSEA_CONDUIT_ADDRESS,
   OPENSEA_CONDUIT_KEY,
   OrderType,
+  ValidationError,
+  ValidationWarning,
 } from "./constants";
 
 import type {
@@ -118,7 +119,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Order expired"], []]);
+      ).to.include.deep.ordered.members([[ValidationError.OrderExpired], []]);
     });
 
     it("Order not yet active", async function () {
@@ -129,7 +130,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([[], ["Order not yet active"]]);
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Time_NotActive],
+      ]);
     });
 
     it("Success", async function () {
@@ -146,7 +150,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateTime(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        ["endTime must be after startTime"],
+        [ValidationError.EndTimeBeforeStartTime],
         [],
       ]);
     });
@@ -163,7 +167,7 @@ describe("Validate Orders", function () {
         await validator.validateTime(baseOrderParameters)
       ).to.include.deep.ordered.members([
         [],
-        ["Order duration is less than 30 minutes"],
+        [ValidationWarning.Time_ShortOrder],
       ]);
     });
 
@@ -175,7 +179,7 @@ describe("Validate Orders", function () {
         await validator.validateTime(baseOrderParameters)
       ).to.include.deep.ordered.members([
         [],
-        ["Order will expire in more than 30 weeks"],
+        [ValidationWarning.Time_DistantExpiration],
       ]);
     });
   });
@@ -189,7 +193,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOfferItems(order.parameters)
-      ).to.include.deep.ordered.members([["Need at least one offer item"], []]);
+      ).to.include.deep.ordered.members([[ValidationError.ZeroOfferItems], []]);
     });
 
     it("more than one offer items", async function () {
@@ -215,7 +219,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOfferItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([[], ["More than one offer item"]]);
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Offer_MoreThanOneItem],
+      ]);
     });
 
     it("ETH offer warning", async function () {
@@ -236,7 +243,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOfferItems(order.parameters)
-      ).to.include.deep.ordered.members([[], ["ETH offer item"]]);
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Offer_NativeItem],
+      ]);
     });
 
     it("invalid item", async function () {
@@ -278,7 +288,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.include.deep.ordered.members([["no token approval"], []]);
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721NotApproved],
+          [],
+        ]);
       });
 
       it("Not owner", async function () {
@@ -298,7 +311,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([
-          ["not owner of token", "no token approval"],
+          [ValidationError.ERC721NotOwner, ValidationError.ERC721NotApproved],
           [],
         ]);
 
@@ -306,7 +319,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([
-          ["not owner of token", "no token approval"],
+          [ValidationError.ERC721NotOwner, ValidationError.ERC721NotApproved],
           [],
         ]);
       });
@@ -371,7 +384,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721InvalidToken],
+          [],
+        ]);
       });
 
       it("Invalid token: null address", async function () {
@@ -390,7 +406,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721InvalidToken],
+          [],
+        ]);
       });
 
       it("Invalid token: eoa", async function () {
@@ -409,7 +428,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.include.deep.ordered.members([["Invalid ERC721 token"], []]);
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721InvalidToken],
+          [],
+        ]);
       });
     });
 
@@ -432,7 +454,10 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(order.parameters)
-        ).to.include.deep.ordered.members([["no token approval"], []]);
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC1155NotApproved],
+          [],
+        ]);
       });
 
       it("Insufficient amount", async function () {
@@ -452,7 +477,10 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([
-          ["no token approval", "insufficient token balance"],
+          [
+            ValidationError.ERC1155NotApproved,
+            ValidationError.ERC1155InsufficientBalance,
+          ],
           [],
         ]);
       });
@@ -500,7 +528,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([
-          ["insufficient token allowance"],
+          [ValidationError.ERC20InsufficientAllowance],
           [],
         ]);
       });
@@ -523,7 +551,10 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([
-          ["insufficient token allowance", "insufficient token balance"],
+          [
+            ValidationError.ERC20InsufficientAllowance,
+            ValidationError.ERC20InsufficientBalance,
+          ],
           [],
         ]);
       });
@@ -584,7 +615,10 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [3]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ZoneRejectedOrder],
+        [],
+      ]);
     });
 
     it("zone revert", async function () {
@@ -592,7 +626,10 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ZoneRejectedOrder],
+        [],
+      ]);
     });
 
     it("zone revert2", async function () {
@@ -600,7 +637,10 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [2]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ZoneRejectedOrder],
+        [],
+      ]);
     });
 
     it("not a zone", async function () {
@@ -608,7 +648,10 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Zone rejected order"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ZoneRejectedOrder],
+        [],
+      ]);
     });
   });
 
@@ -636,7 +679,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         NULL_ADDRESS,
-        [["invalid conduit key"], []],
+        [[ValidationError.ConduitKeyInvalid], []],
       ]);
     });
 
@@ -651,7 +694,10 @@ describe("Validate Orders", function () {
         await validator.isValidConduit(
           "0x0000000000000000000000000000000000000000000000000000000000000099"
         )
-      ).to.include.deep.ordered.members([["invalid conduit key"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ConduitKeyInvalid],
+        [],
+      ]);
     });
   });
 
@@ -688,7 +734,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Order is fully filled"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.OrderFullyFilled],
+        [],
+      ]);
     });
 
     it("Order Cancelled", async function () {
@@ -711,7 +760,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
-      ).to.include.deep.ordered.members([["Order cancelled"], []]);
+      ).to.include.deep.ordered.members([[ValidationError.OrderCancelled], []]);
     });
   });
 
@@ -829,7 +878,7 @@ describe("Validate Orders", function () {
           "250"
         )
       ).to.include.deep.ordered.members([
-        ["Protocol fee recipient mismatch"],
+        [ValidationError.ProtocolFeeRecipient],
         [],
       ]);
 
@@ -849,7 +898,7 @@ describe("Validate Orders", function () {
           "250"
         )
       ).to.include.deep.ordered.members([
-        ["Protocol fee start amount too low"],
+        [ValidationError.ProtocolFeeStartAmount],
         [],
       ]);
 
@@ -869,7 +918,7 @@ describe("Validate Orders", function () {
           "250"
         )
       ).to.include.deep.ordered.members([
-        ["Protocol fee end amount too low"],
+        [ValidationError.ProtocolFeeEndAmount],
         [],
       ]);
 
@@ -887,7 +936,10 @@ describe("Validate Orders", function () {
           feeRecipient,
           "250"
         )
-      ).to.include.deep.ordered.members([["Protocol fee token mismatch"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.ProtocolFeeToken],
+        [],
+      ]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.NATIVE,
@@ -904,7 +956,7 @@ describe("Validate Orders", function () {
           "250"
         )
       ).to.include.deep.ordered.members([
-        ["Protocol fee item type mismatch"],
+        [ValidationError.ProtocolFeeItemType],
         [],
       ]);
     });
@@ -1024,7 +1076,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         [],
-        ["Missing royalty fee consideration item"],
+        [ValidationWarning.RoyaltyFee_Missing],
       ]);
     });
 
@@ -1065,7 +1117,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         [],
-        ["Royalty fee start amount too low"],
+        [ValidationWarning.RoyaltyFee_StartAmount],
       ]);
 
       baseOrderParameters.consideration[1] = {
@@ -1085,7 +1137,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         [],
-        ["Royalty fee end amount too low"],
+        [ValidationWarning.RoyaltyFee_EndAmount],
       ]);
 
       baseOrderParameters.consideration[1] = {
@@ -1103,7 +1155,10 @@ describe("Validate Orders", function () {
           NULL_ADDRESS,
           "0"
         )
-      ).to.include.deep.ordered.members([[], ["Royalty fee token mismatch"]]);
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.RoyaltyFee_Token],
+      ]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.ERC20,
@@ -1122,7 +1177,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         [],
-        ["Royalty fee recipient mismatch"],
+        [ValidationWarning.RoyaltyFee_Recipient],
       ]);
     });
   });
@@ -1197,7 +1252,75 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.callStatic.isValidOrder(order)
-      ).to.include.deep.ordered.members([["invalid signature"], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.InvalidSignature],
+        [],
+      ]);
+    });
+
+    it("no offer", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      const order: OrderStruct = {
+        parameters: baseOrderParameters,
+        signature: "0x",
+      };
+
+      expect(
+        await validator.callStatic.isValidOrder(order)
+      ).to.include.deep.ordered.members([[ValidationError.ZeroOfferItems], []]);
+    });
+
+    it("zero offer amount and invalid consideration token", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "0",
+          endAmount: "0",
+        },
+      ];
+
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc20_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      const order: OrderStruct = {
+        parameters: baseOrderParameters,
+        signature: "0x",
+      };
+
+      expect(
+        await validator.callStatic.isValidOrder(order)
+      ).to.include.deep.ordered.members([
+        [ValidationError.OfferAmountZero, ValidationError.ERC721InvalidToken],
+        [],
+      ]);
     });
   });
 
