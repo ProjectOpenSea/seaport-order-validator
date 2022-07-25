@@ -305,7 +305,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         if (protocolFeeBips != 0) {
-            // Check protocol fee
+            if (orderParameters.consideration.length < 2) {
+                errorsAndWarnings.addError(ValidationError.ProtocolFee_Missing);
+                return errorsAndWarnings;
+            }
+
             ConsiderationItem memory protocolFeeItem = orderParameters
                 .consideration[1];
 
@@ -483,7 +487,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     1
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721TokenDNE);
+                errorsAndWarnings.addError(ValidationError.ERC721IdentifierDNE);
             }
         } else if (
             considerationItem.itemType == ItemType.ERC721_WITH_CRITERIA
