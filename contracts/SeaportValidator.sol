@@ -30,6 +30,7 @@ import { Murky } from "./lib/Murky.sol";
 import {
     RoyaltyEngineInterface
 } from "./interfaces/RoyaltyEngineInterface.sol";
+import { ValidationConfiguration } from "./lib/SeaportValidatorStructs.sol";
 
 import "hardhat/console.sol";
 
@@ -68,6 +69,17 @@ contract SeaportValidator is ConsiderationTypeHashes {
         external
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
+        return
+            isValidOrderWithConfiguration(
+                order,
+                ValidationConfiguration(address(0), 0)
+            );
+    }
+
+    function isValidOrderWithConfiguration(
+        Order memory order,
+        ValidationConfiguration memory validationConfiguration
+    ) public returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
         errorsAndWarnings.concat(validateTime(order.parameters));
@@ -75,11 +87,18 @@ contract SeaportValidator is ConsiderationTypeHashes {
         errorsAndWarnings.concat(validateConsiderationItems(order.parameters));
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(isValidZone(order.parameters));
+        errorsAndWarnings.concat(
+            validateFeeRecipients(
+                order.parameters,
+                validationConfiguration.protocolFeeRecipient,
+                validationConfiguration.protocolFeeBips
+            )
+        );
 
         Order[] memory orders = new Order[](1);
         orders[0] = order;
 
-        // Sucessfull if sig valid or validated on chain
+        // Successful if sig valid or validated on chain
         if (!errorsAndWarnings.hasErrors()) {
             try seaport.validate(orders) {} catch {
                 // Not validated on chain, and sig not currently valid
@@ -221,8 +240,6 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
         }
 
-        validateFeeRecipients(orderParameters, address(0), 0);
-
         if (orderParameters.consideration.length > 4) {
             errorsAndWarnings.addWarning("More than four consideration items");
         }
@@ -237,6 +254,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
         address feeToken;
         address assetAddress;
+        ItemType feeItemType;
         uint256 assetIdentifier;
         uint256 transactionAmountStart;
         uint256 transactionAmountEnd;
@@ -246,6 +264,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             orderParameters.offer[0].itemType == ItemType.NATIVE
         ) {
             // Offer is a bid
+            feeItemType = orderParameters.offer[0].itemType;
             feeToken = orderParameters.offer[0].token;
             transactionAmountStart = orderParameters.offer[0].startAmount;
             transactionAmountEnd = orderParameters.offer[0].endAmount;
@@ -258,6 +277,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             // TODO: Ensure that order is a bid or ask elsewhere
 
             // Assume order must be an ask
+            feeItemType = orderParameters.consideration[0].itemType;
             feeToken = orderParameters.consideration[0].token;
             transactionAmountStart = orderParameters
                 .consideration[0]
@@ -272,6 +292,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
             // Check protocol fee
             ConsiderationItem memory protocolFeeItem = orderParameters
                 .consideration[1];
+
+            if (protocolFeeItem.itemType != feeItemType) {
+                errorsAndWarnings.addError("Protocol fee item type mismatch");
+            }
+
             if (protocolFeeItem.token != feeToken) {
                 errorsAndWarnings.addError("Protocol fee token mismatch");
             }
@@ -320,7 +345,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         if (royaltyRecipient != address(0)) {
-            uint16 royaltyConsiderationIndex = 1 + protocolFeeBips != 0 ? 1 : 0; // 2 if protocol fee, ow 1
+            uint16 royaltyConsiderationIndex = protocolFeeBips != 0 ? 2 : 1; // 2 if protocol fee, ow 1
 
             // Check that royalty consideration item exists
             if (
@@ -507,7 +532,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
     /**
      * @notice Validates the OfferItem parameters. This includes token contract validation
-     * @dev OfferItems with critera are currently not allowed
+     * @dev OfferItems with criteria are currently not allowed
      * @param orderParameters The parameters for the order to validate
      * @param offerItemIndex The index of the offerItem in offer array to validate
      * @return errorsAndWarnings An ErrorsAndWarnings structs with results
@@ -580,6 +605,8 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        // Note: If multiple items are of the same token, token amounts are not summed for validation
+
         errorsAndWarnings = ErrorsAndWarnings(new string[](0), new string[](0));
 
         (
