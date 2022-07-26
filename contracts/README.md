@@ -46,7 +46,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 2 | Order duration less than 30 minutes |
 | 3 | More than one offer item |
 | 4 | Zero consideration items |
-| 5 | More than four consideration items |
+| 5 | More than three consideration items |
 | 6 | Native offer item |
 | 7 | Royalty fee missing |
 | 8 | Royalty fee item type incorrect |

@@ -49,7 +49,7 @@ enum ValidationWarning {
     Time_ShortOrder,
     Offer_MoreThanOneItem,
     Consideration_ZeroItems,
-    Consideration_MoreThanFourItems,
+    Consideration_MoreThanThreeItems,
     Offer_NativeItem,
     RoyaltyFee_Missing,
     RoyaltyFee_ItemType,

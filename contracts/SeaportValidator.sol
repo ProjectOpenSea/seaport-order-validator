@@ -246,9 +246,9 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
         }
 
-        if (orderParameters.consideration.length > 4) {
+        if (orderParameters.consideration.length > 3) {
             errorsAndWarnings.addWarning(
-                ValidationWarning.Consideration_MoreThanFourItems
+                ValidationWarning.Consideration_MoreThanThreeItems
             );
         }
     }

@@ -583,6 +583,295 @@ describe("Validate Orders", function () {
     });
   });
 
+  describe("Validate Consideration Items", function () {
+    it("Zero consideration items", async function () {
+      expect(
+        await validator.validateConsiderationItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Consideration_ZeroItems],
+      ]);
+    });
+
+    it("More than three consideration items", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "2",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "100",
+          endAmount: "100",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "100",
+          endAmount: "100",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "100",
+          endAmount: "100",
+          recipient: feeRecipient,
+        },
+      ];
+
+      expect(
+        await validator.validateConsiderationItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Consideration_MoreThanThreeItems],
+      ]);
+    });
+
+    it("Consideration amount zero", async function () {
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "0",
+          endAmount: "0",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateConsiderationItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [ValidationError.ConsiderationAmountZero],
+        [],
+      ]);
+    });
+
+    it("Invalid consideration item type", async function () {
+      baseOrderParameters.consideration = [
+        {
+          itemType: 6,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "0",
+          endAmount: "0",
+          recipient: owner.address,
+        },
+      ];
+
+      await expect(validator.validateConsiderationItems(baseOrderParameters)).to
+        .be.reverted;
+    });
+
+    describe("ERC721", function () {
+      it("ERC721 consideration not one", async function () {
+        await erc721_1.mint(otherAccounts[0].address, 2);
+
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "2",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721AmountNotOne],
+          [],
+        ]);
+
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "2",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721AmountNotOne],
+          [],
+        ]);
+      });
+
+      it("ERC721 consideration DNE", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721IdentifierDNE],
+          [],
+        ]);
+      });
+
+      it("ERC721 invalid token", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721InvalidToken],
+          [],
+        ]);
+      });
+    });
+
+    describe("ERC1155", async function () {
+      it("ERC1155 invalid token", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC1155,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC1155InvalidToken],
+          [],
+        ]);
+      });
+    });
+
+    describe("ERC20", function () {
+      it("ERC20 invalid token", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc1155_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC20InvalidToken],
+          [],
+        ]);
+      });
+
+      it("ERC20 non zero id", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC20IdentifierNonZero],
+          [],
+        ]);
+      });
+    });
+
+    describe("Native", async function () {
+      it("Native invalid token", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.NATIVE,
+            token: erc1155_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.NativeTokenAddress],
+          [],
+        ]);
+      });
+
+      it("Native non-zero id", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.NATIVE,
+            token: NULL_ADDRESS,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.NativeIdentifierNonZero],
+          [],
+        ]);
+      });
+    });
+  });
+
   describe("Validate Zone", async function () {
     let testZone: TestZone;
     beforeEach(async function () {
@@ -1178,6 +1467,25 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([
         [],
         [ValidationWarning.RoyaltyFee_Recipient],
+      ]);
+
+      baseOrderParameters.consideration[1] = {
+        itemType: ItemType.ERC721,
+        token: erc20_1.address,
+        identifierOrCriteria: "0",
+        startAmount: "25",
+        endAmount: "25",
+        recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+      };
+      expect(
+        await validator.validateFeeRecipients(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          "0"
+        )
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.RoyaltyFee_ItemType],
       ]);
     });
   });
