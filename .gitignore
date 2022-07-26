@@ -10,3 +10,4 @@ cache
 artifacts
 
 yarn-error.log
+.vscode/

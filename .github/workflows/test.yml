@@ -71,7 +71,7 @@ jobs:
       - run: yarn test
 
   coverage:
-    name: Run Coverage Tests
+    name: Run Coverage
     runs-on: ubuntu-latest
 
     strategy:
