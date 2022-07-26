@@ -225,30 +225,6 @@ describe("Validate Orders", function () {
       ]);
     });
 
-    it("ETH offer warning", async function () {
-      const order: OrderStruct = {
-        parameters: baseOrderParameters,
-        signature: "0x",
-      };
-
-      order.parameters.offer = [
-        {
-          itemType: ItemType.NATIVE,
-          token: NULL_ADDRESS,
-          identifierOrCriteria: "0",
-          startAmount: "1",
-          endAmount: "1",
-        },
-      ];
-
-      expect(
-        await validator.validateOfferItems(order.parameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Offer_NativeItem],
-      ]);
-    });
-
     it("invalid item", async function () {
       const order: OrderStruct = {
         parameters: baseOrderParameters,
@@ -433,6 +409,42 @@ describe("Validate Orders", function () {
           [],
         ]);
       });
+
+      it("Amount not one", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "2",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721AmountNotOne],
+          [],
+        ]);
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "2",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721AmountNotOne],
+          [],
+        ]);
+      });
     });
 
     describe("ERC1155", async function () {
@@ -481,6 +493,28 @@ describe("Validate Orders", function () {
             ValidationError.ERC1155NotApproved,
             ValidationError.ERC1155InsufficientBalance,
           ],
+          [],
+        ]);
+      });
+
+      it("Invalid contract", async function () {
+        const order: OrderStruct = {
+          parameters: baseOrderParameters,
+          signature: "0x",
+        };
+        order.parameters.offer = [
+          {
+            itemType: ItemType.ERC1155,
+            token: erc20_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+        expect(
+          await validator.validateOfferItems(order.parameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC1155InvalidToken],
           [],
         ]);
       });
@@ -559,6 +593,45 @@ describe("Validate Orders", function () {
         ]);
       });
 
+      it("Invalid contract", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc1155_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC20InvalidToken],
+          [],
+        ]);
+      });
+
+      it("Non zero identifier", async function () {
+        await erc20_1.mint(owner.address, 2000);
+        await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC20IdentifierNonZero],
+          [],
+        ]);
+      });
+
       it("Success", async function () {
         await erc20_1.mint(owner.address, 2000);
         await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
@@ -579,6 +652,68 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(order.parameters)
         ).to.include.deep.ordered.members([[], []]);
+      });
+    });
+
+    describe("Native", async function () {
+      it("Token address", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.NATIVE,
+            token: erc1155_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.NativeTokenAddress],
+          [],
+        ]);
+      });
+
+      it("Identifier", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.NATIVE,
+            token: NULL_ADDRESS,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.NativeIdentifierNonZero],
+          [],
+        ]);
+      });
+
+      it("Native offer warning", async function () {
+        const order: OrderStruct = {
+          parameters: baseOrderParameters,
+          signature: "0x",
+        };
+
+        order.parameters.offer = [
+          {
+            itemType: ItemType.NATIVE,
+            token: NULL_ADDRESS,
+            identifierOrCriteria: "0",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(order.parameters)
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.Offer_NativeItem],
+        ]);
       });
     });
   });
@@ -1053,7 +1188,7 @@ describe("Validate Orders", function () {
     });
   });
 
-  describe("Protocol Fee Recipient", function () {
+  describe("Protocol Fee", function () {
     it("success bid", async function () {
       const feeRecipient = "0x0000000000000000000000000000000000000FEE";
       baseOrderParameters.offer = [
@@ -1246,6 +1381,39 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         [ValidationError.ProtocolFeeItemType],
+        [],
+      ]);
+    });
+
+    it("Protocol fee missing", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateFeeRecipients(
+          baseOrderParameters,
+          feeRecipient,
+          "250"
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.ProtocolFee_Missing],
         [],
       ]);
     });

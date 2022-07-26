@@ -801,7 +801,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
             if (orderParameters.offerer.balance < minBalance) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20InsufficientAllowance
+                    ValidationError.NativeInsufficientBalance
                 );
             }
 
