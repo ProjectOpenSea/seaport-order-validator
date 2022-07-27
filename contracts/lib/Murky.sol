@@ -16,7 +16,6 @@ contract Murky {
      ***************/
     constructor() {}
 
-    /// ascending sort and concat prior to hashing
     function hashLeafPairs(bytes32 left, bytes32 right)
         public
         pure
@@ -62,14 +61,9 @@ contract Murky {
 
     function getRoot(bytes32[] memory data) public pure returns (bytes32) {
         require(data.length > 1, "won't generate root for single leaf");
-        for (uint256 i = 0; i < data.length; ++i) {
-            assembly {
-                mstore(
-                    add(data, mul(0x20, add(1, i))),
-                    keccak256(add(data, mul(0x20, add(1, i))), 0x20)
-                )
-            }
-        }
+
+        processInput(data);
+
         while (data.length > 1) {
             data = hashLevel(data);
         }
@@ -79,123 +73,136 @@ contract Murky {
     function getProof(bytes32[] memory data, uint256 node)
         public
         pure
-        returns (bytes32[] memory result)
+        returns (bytes32[] memory)
     {
         require(data.length > 1, "won't generate proof for single leaf");
         // The size of the proof is equal to the ceiling of log2(numLeaves)
+        bytes32[] memory result = new bytes32[](log2ceilBitMagic(data.length));
+        uint256 pos = 0;
+
+        processInput(data);
+
         // Two overflow risks: node, pos
         // node: max array size is 2**256-1. Largest index in the array will be 1 less than that. Also,
         // for dynamic arrays, size is limited to 2**64-1
         // pos: pos is bounded by log2(data.length), which should be less than type(uint256).max
-        uint256 resultIndexPtr;
-        uint256 length;
-        assembly {
-            result := mload(0x40)
-            resultIndexPtr := add(0x20, result)
-        }
-        for (uint256 i = 0; i < data.length; ++i) {
-            assembly {
-                mstore(
-                    add(data, mul(0x20, add(1, i))),
-                    keccak256(add(data, mul(0x20, add(1, i))), 0x20)
-                )
-            }
-        }
         while (data.length > 1) {
-            assembly {
-                let oddNodeIndex := and(node, 1)
-                let lastNodeIndex := eq(mload(data), add(1, node))
-                let switchVal := or(shl(1, lastNodeIndex), oddNodeIndex)
-                switch switchVal
-                // neither odd nor last
-                case 0 {
-                    // get pointer to result[node+1] by adding 2 to node and multiplying by 0x20
-                    // to account for the fact that result points to array length, not first index
-                    mstore(
-                        resultIndexPtr,
-                        mload(add(data, mul(0x20, add(2, node))))
-                    )
+            unchecked {
+                if (node & 0x1 == 1) {
+                    result[pos] = data[node - 1];
+                } else if (node + 1 == data.length) {
+                    result[pos] = bytes32(0);
+                } else {
+                    result[pos] = data[node + 1];
                 }
-                // node is last
-                case 2 {
-                    mstore(resultIndexPtr, 0)
-                }
-                // node is odd (and possibly also last)
-                default {
-                    mstore(resultIndexPtr, mload(add(data, mul(0x20, node))))
-                }
-                resultIndexPtr := add(0x20, resultIndexPtr)
-                node := div(node, 2)
-                length := add(1, length)
+                ++pos;
+                node /= 2;
             }
             data = hashLevel(data);
         }
-        assembly {
-            // TODO: test length and result free mem ptr get set correctly
-            mstore(result, length)
-            mstore(0x40, resultIndexPtr)
-        }
         return result;
+    }
+
+    /// Original bitmagic adapted from https://github.com/paulrberg/prb-math/blob/main/contracts/PRBMath.sol
+    /// @dev Note that x assumed > 1
+    function log2ceilBitMagic(uint256 x) public pure returns (uint256) {
+        if (x <= 1) {
+            return 0;
+        }
+        uint256 msb = 0;
+        uint256 _x = x;
+        if (x >= 2**128) {
+            x >>= 128;
+            msb += 128;
+        }
+        if (x >= 2**64) {
+            x >>= 64;
+            msb += 64;
+        }
+        if (x >= 2**32) {
+            x >>= 32;
+            msb += 32;
+        }
+        if (x >= 2**16) {
+            x >>= 16;
+            msb += 16;
+        }
+        if (x >= 2**8) {
+            x >>= 8;
+            msb += 8;
+        }
+        if (x >= 2**4) {
+            x >>= 4;
+            msb += 4;
+        }
+        if (x >= 2**2) {
+            x >>= 2;
+            msb += 2;
+        }
+        if (x >= 2**1) {
+            msb += 1;
+        }
+
+        uint256 lsb = (~_x + 1) & _x;
+        if ((lsb == _x) && (msb > 0)) {
+            return msb;
+        } else {
+            return msb + 1;
+        }
     }
 
     ///@dev function is private to prevent unsafe data from being passed
     function hashLevel(bytes32[] memory data)
         private
         pure
-        returns (bytes32[] memory result)
+        returns (bytes32[] memory)
     {
-        // bytes32[] memory result;
+        bytes32[] memory result;
 
         // Function is private, and all internal callers check that data.length >=2.
         // Underflow is not possible as lowest possible value for data/result index is 1
         // overflow should be safe as length is / 2 always.
-        uint256 length;
-        uint256 newLength;
-        uint256 resultIndexPointer;
-        uint256 dataIndexPointer;
-        uint256 stopIteration;
-        bool hashLast;
-        assembly {
-            result := data
-            length := mload(data)
-            switch and(length, 1)
-            case 1 {
-                newLength := add(1, div(length, 2))
-                hashLast := 1
-                // todo: hash last node with zero
+        unchecked {
+            uint256 length = data.length;
+            if (length & 0x1 == 1) {
+                result = new bytes32[](length / 2 + 1);
+                result[result.length - 1] = data[length - 1];
+            } else {
+                result = new bytes32[](length / 2);
             }
-            default {
-                newLength := div(length, 2)
-            }
-            mstore(data, newLength)
-            resultIndexPointer := add(0x20, data)
-            dataIndexPointer := resultIndexPointer
-            // stop iterating over for loop at length-1
-            // todo: does this make sense
-            stopIteration := add(data, mul(length, 0x20))
-        }
-        for (; dataIndexPointer < stopIteration; ) {
-            bytes32 data1;
-            bytes32 data2;
-            assembly {
-                data1 := mload(dataIndexPointer)
-                data2 := mload(add(dataIndexPointer, 0x20))
-            }
-            bytes32 hashedPair = hashLeafPairs(data1, data2);
-            assembly {
-                mstore(resultIndexPointer, hashedPair)
-                resultIndexPointer := add(0x20, resultIndexPointer)
-                dataIndexPointer := add(0x40, dataIndexPointer)
+            // pos is upper bounded by data.length / 2, so safe even if array is at max size
+            uint256 pos = 0;
+            for (uint256 i = 0; i < length - 1; i += 2) {
+                result[pos] = hashLeafPairs(data[i], data[i + 1]);
+                ++pos;
             }
         }
-        if (hashLast) {
-            bytes32 data1;
+        return result;
+    }
+
+    /**
+     * Hashes each element of the input array in place using keccak256
+     */
+    function processInput(bytes32[] memory data) public pure {
+        // Hash inputs with keccak256
+        for (uint256 i = 0; i < data.length; ++i) {
             assembly {
-                data1 := mload(add(data, mul(0x20, length)))
-            }
-            bytes32 hashedPair = hashLeafPairs(data1, bytes32(0));
-            assembly {
-                mstore(resultIndexPointer, hashedPair)
+                mstore(
+                    add(data, mul(0x20, add(1, i))),
+                    keccak256(add(data, mul(0x20, add(1, i))), 0x20)
+                )
+                // for every element after the first, hashed value must be greater than the last one
+                if and(
+                    gt(i, 0),
+                    iszero(
+                        gt(
+                            mload(add(data, mul(0x20, add(1, i)))),
+                            mload(add(data, mul(0x20, add(1, sub(i, 1)))))
+                        )
+                    )
+                ) {
+                    revert(0, 0) // Elements not ordered by hash
+                }
             }
         }
     }

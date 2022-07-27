@@ -94,7 +94,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         errorsAndWarnings.concat(
             validateFeeRecipients(
                 order.parameters,
-                validationConfiguration.protocolFeeRecipient,
+                validationConfiguration.ProtocolFee_Recipient,
                 validationConfiguration.protocolFeeBips
             )
         );
@@ -211,7 +211,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
         // You must have an offer item
         if (orderParameters.offer.length == 0) {
-            errorsAndWarnings.addError(ValidationError.ZeroOfferItems);
+            errorsAndWarnings.addError(ValidationError.Offer_ZeroItems);
         }
 
         if (orderParameters.offer.length > 1) {
@@ -257,13 +257,13 @@ contract SeaportValidator is ConsiderationTypeHashes {
      * @notice Validates the protocol and royalty fee recipients for an order.
      *    Only checks first fee recipient provided by RoyaltyRegistry.
      * @param orderParameters The parameters for the order to validate.
-     * @param protocolFeeRecipient The protocol fee recipient.
+     * @param ProtocolFee_Recipient The protocol fee recipient.
      * @param protocolFeeBips The protocol fee in BIPs.
      * @return errorsAndWarnings The errors and warnings.
      */
     function validateFeeRecipients(
         OrderParameters memory orderParameters,
-        address protocolFeeRecipient,
+        address ProtocolFee_Recipient,
         uint256 protocolFeeBips
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
@@ -338,19 +338,21 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 .consideration[1];
 
             if (protocolFeeItem.itemType != feeItemType) {
-                errorsAndWarnings.addError(ValidationError.ProtocolFeeItemType);
+                errorsAndWarnings.addError(
+                    ValidationError.ProtocolFee_ItemType
+                );
                 return errorsAndWarnings;
             }
 
             if (protocolFeeItem.token != feeToken) {
-                errorsAndWarnings.addError(ValidationError.ProtocolFeeToken);
+                errorsAndWarnings.addError(ValidationError.ProtocolFee_Token);
             }
             if (
                 protocolFeeItem.startAmount <
                 (transactionAmountStart * protocolFeeBips) / 10000
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ProtocolFeeStartAmount
+                    ValidationError.ProtocolFee_StartAmount
                 );
             }
             if (
@@ -358,12 +360,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 (transactionAmountEnd * protocolFeeBips) / 10000
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ProtocolFeeEndAmount
+                    ValidationError.ProtocolFee_EndAmount
                 );
             }
-            if (protocolFeeItem.recipient != protocolFeeRecipient) {
+            if (protocolFeeItem.recipient != ProtocolFee_Recipient) {
                 errorsAndWarnings.addError(
-                    ValidationError.ProtocolFeeRecipient
+                    ValidationError.ProtocolFee_Recipient
                 );
             }
         }
@@ -488,7 +490,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 considerationItem.startAmount != 1 ||
                 considerationItem.endAmount != 1
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721AmountNotOne);
+                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
             }
 
             if (
@@ -497,7 +499,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     type(IERC721).interfaceId
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721InvalidToken);
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
                 return errorsAndWarnings;
             }
 
@@ -511,7 +513,9 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     1
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721IdentifierDNE);
+                errorsAndWarnings.addError(
+                    ValidationError.ERC721_IdentifierDNE
+                );
             }
         } else if (
             considerationItem.itemType == ItemType.ERC721_WITH_CRITERIA
@@ -522,7 +526,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     type(IERC721).interfaceId
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721InvalidToken);
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
             }
         } else if (
             considerationItem.itemType == ItemType.ERC1155 ||
@@ -534,12 +538,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     type(IERC1155).interfaceId
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC1155InvalidToken);
+                errorsAndWarnings.addError(
+                    ValidationError.ERC1155_InvalidToken
+                );
             }
         } else if (considerationItem.itemType == ItemType.ERC20) {
             if (considerationItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20IdentifierNonZero
+                    ValidationError.ERC20_IdentifierNonZero
                 );
             }
 
@@ -554,15 +560,15 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20InvalidToken);
+                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
             }
         } else if (considerationItem.itemType == ItemType.NATIVE) {
             if (considerationItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.NativeTokenAddress);
+                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
             }
             if (considerationItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.NativeIdentifierNonZero
+                    ValidationError.Native_IdentifierNonZero
                 );
             }
         } else {
@@ -615,20 +621,22 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
         if (offerItem.itemType == ItemType.ERC721) {
             if (offerItem.startAmount != 1 || offerItem.endAmount != 1) {
-                errorsAndWarnings.addError(ValidationError.ERC721AmountNotOne);
+                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
             }
 
             if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
-                errorsAndWarnings.addError(ValidationError.ERC721InvalidToken);
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
             }
         } else if (offerItem.itemType == ItemType.ERC1155) {
             if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
-                errorsAndWarnings.addError(ValidationError.ERC1155InvalidToken);
+                errorsAndWarnings.addError(
+                    ValidationError.ERC1155_InvalidToken
+                );
             }
         } else if (offerItem.itemType == ItemType.ERC20) {
             if (offerItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20IdentifierNonZero
+                    ValidationError.ERC20_IdentifierNonZero
                 );
             }
 
@@ -642,16 +650,16 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
             if (res.length == 0) {
                 // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20InvalidToken);
+                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
             }
         } else if (offerItem.itemType == ItemType.NATIVE) {
             if (offerItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.NativeTokenAddress);
+                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
             }
 
             if (offerItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.NativeIdentifierNonZero
+                    ValidationError.Native_IdentifierNonZero
                 );
             }
         } else {
@@ -696,7 +704,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     orderParameters.offerer
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721NotOwner);
+                errorsAndWarnings.addError(ValidationError.ERC721_NotOwner);
             }
 
             // Check approval
@@ -720,7 +728,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     )
                 ) {
                     errorsAndWarnings.addError(
-                        ValidationError.ERC721NotApproved
+                        ValidationError.ERC721_NotApproved
                     );
                 }
             }
@@ -737,7 +745,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     true
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC1155NotApproved);
+                errorsAndWarnings.addError(ValidationError.ERC1155_NotApproved);
             }
 
             uint256 minBalance = offerItem.startAmount < offerItem.endAmount
@@ -755,7 +763,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC1155InsufficientBalance
+                    ValidationError.ERC1155_InsufficientBalance
                 );
             }
         } else if (offerItem.itemType == ItemType.ERC20) {
@@ -777,7 +785,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20InsufficientAllowance
+                    ValidationError.ERC20_InsufficientAllowance
                 );
             }
 
@@ -791,7 +799,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20InsufficientBalance
+                    ValidationError.ERC20_InsufficientBalance
                 );
             }
         } else if (offerItem.itemType == ItemType.NATIVE) {
@@ -801,7 +809,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
             if (orderParameters.offerer.balance < minBalance) {
                 errorsAndWarnings.addError(
-                    ValidationError.NativeInsufficientBalance
+                    ValidationError.Native_InsufficientBalance
                 );
             }
 
@@ -845,7 +853,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 ZoneInterface.isValidOrder.selector
             )
         ) {
-            errorsAndWarnings.addError(ValidationError.ZoneRejectedOrder);
+            errorsAndWarnings.addError(ValidationError.Zone_RejectedOrder);
         }
     }
 
