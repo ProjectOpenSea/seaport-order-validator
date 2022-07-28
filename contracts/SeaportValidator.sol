@@ -61,7 +61,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
     Murky immutable murky;
 
     constructor() {
-        murky = new Murky();
+        murky = new Murky(false);
     }
 
     /**

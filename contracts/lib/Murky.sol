@@ -1,21 +1,37 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.4;
 
+/// @notice Nascent, simple, kinda efficient (and improving!) Merkle proof generator and verifier
+/// @author dmfxyz
+/// @dev Note Generic Merkle Tree
 contract Murky {
-    uint136 constant _2_128 = 2**128;
-    uint72 constant _2_64 = 2**64;
-    uint40 constant _2_32 = 2**32;
-    uint24 constant _2_16 = 2**16;
-    uint16 constant _2_8 = 2**8;
-    uint8 constant _2_4 = 2**4;
-    uint8 constant _2_2 = 2**2;
-    uint8 constant _2_1 = 2**1;
+    bool public immutable HASH_ODD_WITH_ZERO;
 
-    /***************
-     * CONSTRUCTOR *
-     ***************/
-    constructor() {}
+    constructor(bool hashOddWithZero) {
+        HASH_ODD_WITH_ZERO = hashOddWithZero;
+    }
 
+    function verifyProof(
+        bytes32 root,
+        bytes32[] calldata proof,
+        bytes32 valueToProve
+    ) external pure returns (bool) {
+        // proof length must be less than max array size
+        bytes32 rollingHash = valueToProve;
+        uint256 length = proof.length;
+        unchecked {
+            for (uint256 i = 0; i < length; ++i) {
+                rollingHash = hashLeafPairs(rollingHash, proof[i]);
+            }
+        }
+        return root == rollingHash;
+    }
+
+    /********************
+     * HASHING FUNCTION *
+     ********************/
+
+    /// ascending sort and concat prior to hashing
     function hashLeafPairs(bytes32 left, bytes32 right)
         public
         pure
@@ -35,149 +51,242 @@ contract Murky {
         }
     }
 
-    /**********************
-     * PROOF VERIFICATION *
-     **********************/
-
-    function verifyProof(
-        bytes32 root,
-        bytes32[] calldata proof,
-        bytes32 valueToProve
-    ) external pure returns (bool) {
-        // proof length must be less than max array size
-        bytes32 rollingHash = valueToProve;
-        uint256 length = proof.length;
-        unchecked {
-            for (uint256 i = 0; i < length; ++i) {
-                rollingHash = hashLeafPairs(rollingHash, proof[i]);
-            }
-        }
-        return root == rollingHash;
-    }
-
     /********************
      * PROOF GENERATION *
      ********************/
 
-    function getRoot(bytes32[] memory data) public pure returns (bytes32) {
+    function getRoot(bytes32[] memory data)
+        external
+        view
+        returns (bytes32 result)
+    {
         require(data.length > 1, "won't generate root for single leaf");
+        bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
         processInput(data);
 
-        while (data.length > 1) {
-            data = hashLevel(data);
+        assembly {
+            function hashLeafPairs(left, right) -> _hash {
+                switch lt(left, right)
+                case 0 {
+                    mstore(0x0, right)
+                    mstore(0x20, left)
+                }
+                default {
+                    mstore(0x0, left)
+                    mstore(0x20, right)
+                }
+                _hash := keccak256(0x0, 0x40)
+            }
+            function hashLevel(_data, length, _hashOddWithZero) -> newLength {
+                // we will be modifying data in-place, so set result pointer to data pointer
+                let _result := _data
+                // get length of original data array
+                // let length := mload(_data)
+                // bool to track if we need to hash the last element of an odd-length array with zero
+                let oddLength
+
+                // if length is odd, we need to hash the last element with zero
+                switch and(length, 1)
+                case 1 {
+                    // if length is odd, add 1 so division by 2 will round up
+                    newLength := add(1, div(length, 2))
+                    oddLength := 1
+                }
+                default {
+                    newLength := div(length, 2)
+                }
+                // todo: necessary?
+                // mstore(_data, newLength)
+                let resultIndexPointer := add(0x20, _data)
+                let dataIndexPointer := resultIndexPointer
+
+                // stop iterating over for loop at length-1
+                let stopIteration := add(_data, mul(length, 0x20))
+                // write result array in-place over data array
+                for {
+
+                } lt(dataIndexPointer, stopIteration) {
+
+                } {
+                    // get next two elements from data, hash them together
+                    let data1 := mload(dataIndexPointer)
+                    let data2 := mload(add(dataIndexPointer, 0x20))
+                    let hashedPair := hashLeafPairs(data1, data2)
+                    // overwrite an element of data array with
+                    mstore(resultIndexPointer, hashedPair)
+                    // increment result pointer by 1 slot
+                    resultIndexPointer := add(0x20, resultIndexPointer)
+                    // increment data pointer by 2 slot
+                    dataIndexPointer := add(0x40, dataIndexPointer)
+                }
+                // we did not yet hash last index if odd-length
+                if oddLength {
+                    let data1 := mload(dataIndexPointer)
+                    let nextValue
+                    switch _hashOddWithZero
+                    case 0 {
+                        nextValue := data1
+                    }
+                    default {
+                        nextValue := hashLeafPairs(data1, 0)
+                    }
+                    mstore(resultIndexPointer, nextValue)
+                }
+            }
+
+            let dataLength := mload(data)
+            for {
+
+            } gt(dataLength, 1) {
+
+            } {
+                dataLength := hashLevel(data, dataLength, hashOddWithZero)
+            }
+            result := mload(add(0x20, data))
         }
-        return data[0];
     }
 
     function getProof(bytes32[] memory data, uint256 node)
-        public
-        pure
-        returns (bytes32[] memory)
+        external
+        view
+        returns (bytes32[] memory result)
     {
         require(data.length > 1, "won't generate proof for single leaf");
-        // The size of the proof is equal to the ceiling of log2(numLeaves)
-        bytes32[] memory result = new bytes32[](log2ceilBitMagic(data.length));
-        uint256 pos = 0;
+        bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
         processInput(data);
 
+        // The size of the proof is equal to the ceiling of log2(numLeaves)
         // Two overflow risks: node, pos
         // node: max array size is 2**256-1. Largest index in the array will be 1 less than that. Also,
         // for dynamic arrays, size is limited to 2**64-1
         // pos: pos is bounded by log2(data.length), which should be less than type(uint256).max
-        while (data.length > 1) {
-            unchecked {
-                if (node & 0x1 == 1) {
-                    result[pos] = data[node - 1];
-                } else if (node + 1 == data.length) {
-                    result[pos] = bytes32(0);
-                } else {
-                    result[pos] = data[node + 1];
+        assembly {
+            function hashLeafPairs(left, right) -> _hash {
+                switch lt(left, right)
+                case 0 {
+                    mstore(0x0, right)
+                    mstore(0x20, left)
                 }
-                ++pos;
-                node /= 2;
+                default {
+                    mstore(0x0, left)
+                    mstore(0x20, right)
+                }
+                _hash := keccak256(0x0, 0x40)
             }
-            data = hashLevel(data);
-        }
-        return result;
-    }
+            function hashLevel(_data, length, _hashOddWithZero) -> newLength {
+                // we will be modifying data in-place, so set result pointer to data pointer
+                let _result := _data
+                // get length of original data array
+                // let length := mload(_data)
+                // bool to track if we need to hash the last element of an odd-length array with zero
+                let oddLength
 
-    /// Original bitmagic adapted from https://github.com/paulrberg/prb-math/blob/main/contracts/PRBMath.sol
-    /// @dev Note that x assumed > 1
-    function log2ceilBitMagic(uint256 x) public pure returns (uint256) {
-        if (x <= 1) {
-            return 0;
-        }
-        uint256 msb = 0;
-        uint256 _x = x;
-        if (x >= 2**128) {
-            x >>= 128;
-            msb += 128;
-        }
-        if (x >= 2**64) {
-            x >>= 64;
-            msb += 64;
-        }
-        if (x >= 2**32) {
-            x >>= 32;
-            msb += 32;
-        }
-        if (x >= 2**16) {
-            x >>= 16;
-            msb += 16;
-        }
-        if (x >= 2**8) {
-            x >>= 8;
-            msb += 8;
-        }
-        if (x >= 2**4) {
-            x >>= 4;
-            msb += 4;
-        }
-        if (x >= 2**2) {
-            x >>= 2;
-            msb += 2;
-        }
-        if (x >= 2**1) {
-            msb += 1;
-        }
+                // if length is odd, we'll need to hash the last element with zero
+                switch and(length, 1)
+                case 1 {
+                    // if length is odd, add 1 so division by 2 will round up
+                    newLength := add(1, div(length, 2))
+                    oddLength := 1
+                }
+                default {
+                    newLength := div(length, 2)
+                }
+                // todo: necessary?
+                // mstore(_data, newLength)
+                let resultIndexPointer := add(0x20, _data)
+                let dataIndexPointer := resultIndexPointer
 
-        uint256 lsb = (~_x + 1) & _x;
-        if ((lsb == _x) && (msb > 0)) {
-            return msb;
-        } else {
-            return msb + 1;
-        }
-    }
+                // stop iterating over for loop at length-1
+                let stopIteration := add(_data, mul(length, 0x20))
+                // write result array in-place over data array
+                for {
 
-    ///@dev function is private to prevent unsafe data from being passed
-    function hashLevel(bytes32[] memory data)
-        private
-        pure
-        returns (bytes32[] memory)
-    {
-        bytes32[] memory result;
+                } lt(dataIndexPointer, stopIteration) {
 
-        // Function is private, and all internal callers check that data.length >=2.
-        // Underflow is not possible as lowest possible value for data/result index is 1
-        // overflow should be safe as length is / 2 always.
-        unchecked {
-            uint256 length = data.length;
-            if (length & 0x1 == 1) {
-                result = new bytes32[](length / 2 + 1);
-                result[result.length - 1] = data[length - 1];
-            } else {
-                result = new bytes32[](length / 2);
+                } {
+                    // get next two elements from data, hash them together
+                    let data1 := mload(dataIndexPointer)
+                    let data2 := mload(add(dataIndexPointer, 0x20))
+                    let hashedPair := hashLeafPairs(data1, data2)
+                    // overwrite an element of data array with
+                    mstore(resultIndexPointer, hashedPair)
+                    // increment result pointer by 1 slot
+                    resultIndexPointer := add(0x20, resultIndexPointer)
+                    // increment data pointer by 2 slot
+                    dataIndexPointer := add(0x40, dataIndexPointer)
+                }
+                // we did not yet hash last index if odd-length
+                if oddLength {
+                    let data1 := mload(dataIndexPointer)
+                    let nextValue
+                    switch _hashOddWithZero
+                    case 0 {
+                        nextValue := data1
+                    }
+                    default {
+                        nextValue := hashLeafPairs(data1, 0)
+                    }
+                    mstore(resultIndexPointer, nextValue)
+                }
             }
-            // pos is upper bounded by data.length / 2, so safe even if array is at max size
-            uint256 pos = 0;
-            for (uint256 i = 0; i < length - 1; i += 2) {
-                result[pos] = hashLeafPairs(data[i], data[i + 1]);
-                ++pos;
+
+            // set result pointer to free memory
+            result := mload(0x40)
+            // get pointer to first index of result
+            let resultIndexPtr := add(0x20, result)
+            // declare so we can use later
+            let newLength
+            // put length of data onto stack
+            let dataLength := mload(data)
+            for {
+                // repeat until only one element is left
+            } gt(dataLength, 1) {
+
+            } {
+                // bool if node is odd
+                let oddNodeIndex := and(node, 1)
+                // bool if node is last
+                let lastNodeIndex := eq(dataLength, add(1, node))
+                // store both bools in one value so we can switch on it
+                let switchVal := or(shl(1, lastNodeIndex), oddNodeIndex)
+                switch switchVal
+                // 00 - neither odd nor last
+                case 0 {
+                    // store data[node+1] at result[i]
+                    // get pointer to result[node+1] by adding 2 to node and multiplying by 0x20
+                    // to account for the fact that result points to array length, not first index
+                    mstore(
+                        resultIndexPtr,
+                        mload(add(data, mul(0x20, add(2, node))))
+                    )
+                }
+                // 10 - node is last
+                case 2 {
+                    // store 0 at result[i]
+                    mstore(resultIndexPtr, 0)
+                }
+                // 01 or 11 - node is odd (and possibly also last)
+                default {
+                    // store data[node-1] at result[i]
+                    mstore(resultIndexPtr, mload(add(data, mul(0x20, node))))
+                }
+                // increment result index
+                resultIndexPtr := add(0x20, resultIndexPtr)
+
+                // get new node index
+                node := div(node, 2)
+                // keep track of how long result array is
+                newLength := add(1, newLength)
+                // compute the next hash level, overwriting data, and get the new length
+                dataLength := hashLevel(data, dataLength, hashOddWithZero)
             }
+            // store length of result array at pointer
+            mstore(result, newLength)
+            // set free mem pointer to word after end of result array
+            mstore(0x40, resultIndexPtr)
         }
-        return result;
     }
 
     /**
