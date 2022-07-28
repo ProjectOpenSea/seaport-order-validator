@@ -125,7 +125,7 @@ export enum ValidationError {
   Native_InsufficientBalance,
   Zone_RejectedOrder,
   ConduitKeyInvalid,
-  MerkleProofError,
+  MerkleError,
   FeesUncheckable,
 }
 

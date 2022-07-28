@@ -36,8 +36,6 @@ import {
     ValidationWarning
 } from "./lib/SeaportValidatorTypes.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @title SeaportValidator
  * @notice SeaportValidator validates simple orders that adhere to a set of rules defined below:
@@ -287,6 +285,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
             } else if (
                 isPaymentToken(orderParameters.offer[0].itemType) &&
                 isPaymentToken(orderParameters.consideration[0].itemType)
+            ) {
+                // Not bid or ask, can't check fees
+                canCheckFee = false;
+            } else if (
+                !isPaymentToken(orderParameters.offer[0].itemType) &&
+                !isPaymentToken(orderParameters.consideration[0].itemType)
             ) {
                 // Not bid or ask, can't check fees
                 canCheckFee = false;
@@ -920,7 +924,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             )
         );
         if (!success) {
-            errorsAndWarnings.addError(ValidationError.MerkleProofError);
+            errorsAndWarnings.addError(ValidationError.MerkleError);
             return (new bytes32[](0), errorsAndWarnings);
         }
 
@@ -938,7 +942,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
         );
         if (!success) {
-            errorsAndWarnings.addError(ValidationError.MerkleProofError);
+            errorsAndWarnings.addError(ValidationError.MerkleError);
             return (0, errorsAndWarnings);
         }
 

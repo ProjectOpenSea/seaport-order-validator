@@ -7,5 +7,6 @@ module.exports = {
     "lib/ConsiderationTypeHashes.sol",
     "lib/ConsiderationStructs.sol",
     "lib/ConsiderationEnums.sol",
+    "lib/Murky.sol",
   ],
 };

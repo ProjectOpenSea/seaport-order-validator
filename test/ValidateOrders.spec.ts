@@ -77,8 +77,17 @@ describe("Validate Orders", function () {
   }
 
   beforeEach(async function () {
+    const res = await loadFixture(deployFixture);
+    validator = res.validator;
+    owner = res.owner;
+    otherAccounts = res.otherAccounts;
+    erc721_1 = res.erc721_1;
+    erc721_2 = res.erc721_2;
+    erc1155_1 = res.erc1155_1;
+    erc20_1 = res.erc20_1;
+
     baseOrderParameters = {
-      offerer: NULL_ADDRESS,
+      offerer: owner.address,
       zone: NULL_ADDRESS,
       orderType: OrderType.FULL_OPEN,
       startTime: "0",
@@ -90,15 +99,6 @@ describe("Validate Orders", function () {
       zoneHash: EMPTY_BYTES32,
       conduitKey: EMPTY_BYTES32,
     };
-    const res = await loadFixture(deployFixture);
-    validator = res.validator;
-    owner = res.owner;
-    otherAccounts = res.otherAccounts;
-    erc721_1 = res.erc721_1;
-    erc721_2 = res.erc721_2;
-    erc1155_1 = res.erc1155_1;
-    baseOrderParameters.offerer = owner.address;
-    erc20_1 = res.erc20_1;
   });
 
   describe("Validate Time", function () {
@@ -186,13 +186,8 @@ describe("Validate Orders", function () {
 
   describe("Validate Offer Items", function () {
     it("Zero offer items", async function () {
-      const order: OrderStruct = {
-        parameters: baseOrderParameters,
-        signature: "0x",
-      };
-
       expect(
-        await validator.validateOfferItems(order.parameters)
+        await validator.validateOfferItems(baseOrderParameters)
       ).to.include.deep.ordered.members([
         [ValidationError.Offer_ZeroItems],
         [],
@@ -229,12 +224,7 @@ describe("Validate Orders", function () {
     });
 
     it("invalid item", async function () {
-      const order: OrderStruct = {
-        parameters: baseOrderParameters,
-        signature: "0x",
-      };
-
-      order.parameters.offer = [
+      baseOrderParameters.offer = [
         {
           itemType: 6,
           token: NULL_ADDRESS,
@@ -244,7 +234,7 @@ describe("Validate Orders", function () {
         },
       ];
 
-      await expect(validator.validateOfferItems(order.parameters)).to.be
+      await expect(validator.validateOfferItems(baseOrderParameters)).to.be
         .reverted;
     });
 
@@ -252,11 +242,7 @@ describe("Validate Orders", function () {
       it("No approval", async function () {
         await erc721_1.mint(owner.address, 2);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: erc721_1.address,
@@ -266,7 +252,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_NotApproved],
           [],
@@ -274,11 +260,7 @@ describe("Validate Orders", function () {
       });
 
       it("Not owner", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: erc721_1.address,
@@ -288,7 +270,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_NotOwner, ValidationError.ERC721_NotApproved],
           [],
@@ -296,7 +278,7 @@ describe("Validate Orders", function () {
 
         await erc721_1.mint(otherAccounts[0].address, 2);
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_NotOwner, ValidationError.ERC721_NotApproved],
           [],
@@ -307,11 +289,7 @@ describe("Validate Orders", function () {
         await erc721_1.mint(owner.address, 2);
         await erc721_1.setApprovalForAll(CROSS_CHAIN_SEAPORT_ADDRESS, true);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: erc721_1.address,
@@ -321,7 +299,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([[], []]);
       });
 
@@ -329,11 +307,7 @@ describe("Validate Orders", function () {
         await erc721_1.mint(owner.address, 2);
         await erc721_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 2);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: erc721_1.address,
@@ -343,16 +317,12 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([[], []]);
       });
 
       it("Invalid token: contract", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: erc20_1.address,
@@ -362,7 +332,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_InvalidToken],
           [],
@@ -370,11 +340,7 @@ describe("Validate Orders", function () {
       });
 
       it("Invalid token: null address", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: NULL_ADDRESS,
@@ -384,7 +350,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_InvalidToken],
           [],
@@ -392,11 +358,7 @@ describe("Validate Orders", function () {
       });
 
       it("Invalid token: eoa", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
             token: otherAccounts[2].address,
@@ -406,7 +368,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC721_InvalidToken],
           [],
@@ -454,11 +416,7 @@ describe("Validate Orders", function () {
       it("No approval", async function () {
         await erc1155_1.mint(owner.address, 2, 1);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC1155,
             token: erc1155_1.address,
@@ -468,7 +426,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC1155_NotApproved],
           [],
@@ -476,11 +434,7 @@ describe("Validate Orders", function () {
       });
 
       it("Insufficient amount", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC1155,
             token: erc1155_1.address,
@@ -490,7 +444,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [
             ValidationError.ERC1155_NotApproved,
@@ -501,11 +455,7 @@ describe("Validate Orders", function () {
       });
 
       it("Invalid contract", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC1155,
             token: erc20_1.address,
@@ -515,7 +465,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC1155_InvalidToken],
           [],
@@ -526,11 +476,7 @@ describe("Validate Orders", function () {
         await erc1155_1.mint(owner.address, 2, 1);
         await erc1155_1.setApprovalForAll(CROSS_CHAIN_SEAPORT_ADDRESS, true);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC1155,
             token: erc1155_1.address,
@@ -540,7 +486,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([[], []]);
       });
     });
@@ -549,11 +495,7 @@ describe("Validate Orders", function () {
       it("No approval", async function () {
         await erc20_1.mint(owner.address, 2000);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
             token: erc20_1.address,
@@ -563,7 +505,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ValidationError.ERC20_InsufficientAllowance],
           [],
@@ -572,11 +514,8 @@ describe("Validate Orders", function () {
 
       it("Insufficient amount", async function () {
         await erc20_1.mint(owner.address, 900);
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
             token: erc20_1.address,
@@ -586,7 +525,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [
             ValidationError.ERC20_InsufficientAllowance,
@@ -639,11 +578,7 @@ describe("Validate Orders", function () {
         await erc20_1.mint(owner.address, 2000);
         await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
 
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
             token: erc20_1.address,
@@ -653,7 +588,7 @@ describe("Validate Orders", function () {
           },
         ];
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([[], []]);
       });
     });
@@ -696,12 +631,7 @@ describe("Validate Orders", function () {
       });
 
       it("Native offer warning", async function () {
-        const order: OrderStruct = {
-          parameters: baseOrderParameters,
-          signature: "0x",
-        };
-
-        order.parameters.offer = [
+        baseOrderParameters.offer = [
           {
             itemType: ItemType.NATIVE,
             token: NULL_ADDRESS,
@@ -712,9 +642,30 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateOfferItems(order.parameters)
+          await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [],
+          [ValidationWarning.Offer_NativeItem],
+        ]);
+      });
+
+      it("Insufficient balance", async function () {
+        baseOrderParameters.offerer = feeRecipient;
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.NATIVE,
+            token: NULL_ADDRESS,
+            identifierOrCriteria: "0",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.Native_InsufficientBalance],
           [ValidationWarning.Offer_NativeItem],
         ]);
       });
@@ -901,6 +852,43 @@ describe("Validate Orders", function () {
           [],
         ]);
       });
+
+      it("ERC721 criteria invalid token", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.ERC721_InvalidToken],
+          [],
+        ]);
+      });
+
+      it("ERC721 criteria success", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[], []]);
+      });
     });
 
     describe("ERC1155", async function () {
@@ -922,6 +910,23 @@ describe("Validate Orders", function () {
           [ValidationError.ERC1155_InvalidToken],
           [],
         ]);
+      });
+
+      it("success", async function () {
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC1155,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[], []]);
       });
     });
 
@@ -1166,10 +1171,53 @@ describe("Validate Orders", function () {
         "0xc2575a0e9e593c00f959f8c92f12db2869c3395a3b0502d05e2516446f71f85b",
       ]);
     });
+
+    it("Create proof: invalid index", async function () {
+      const input = [...Array(5).keys()].sort((a, b) => {
+        return ethers.utils.keccak256(
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(a), 32)
+        ) >
+          ethers.utils.keccak256(
+            ethers.utils.hexZeroPad(ethers.utils.hexlify(b), 32)
+          )
+          ? 1
+          : -1;
+      });
+
+      [input[0], input[1]] = [input[1], input[0]];
+
+      const res = await validator.getMerkleProof(input, 8);
+      expect(res.errorsAndWarnings).to.include.deep.ordered.members([
+        [ValidationError.MerkleError],
+        [],
+      ]);
+    });
+
+    it("Create root: incorrect order", async function () {
+      const input = [...Array(5).keys()].sort((a, b) => {
+        return ethers.utils.keccak256(
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(a), 32)
+        ) >
+          ethers.utils.keccak256(
+            ethers.utils.hexZeroPad(ethers.utils.hexlify(b), 32)
+          )
+          ? 1
+          : -1;
+      });
+
+      [input[0], input[1]] = [input[1], input[0]];
+
+      const res = await validator.getMerkleRoot(input);
+      expect(res.merkleRoot).to.equal(EMPTY_BYTES32);
+      expect(res.errorsAndWarnings).to.include.deep.ordered.members([
+        [ValidationError.MerkleError],
+        [],
+      ]);
+    });
   }).timeout(60000);
 
   describe("Validate Status", async function () {
-    it("fully filled", async function () {
+    it.only("fully filled", async function () {
       await erc20_1.mint(otherAccounts[0].address, 2000);
       await erc20_1
         .connect(otherAccounts[0])
@@ -1225,272 +1273,561 @@ describe("Validate Orders", function () {
     });
   });
 
-  describe("Protocol Fee", function () {
-    it("success bid", async function () {
-      const feeRecipient = "0x0000000000000000000000000000000000000FEE";
-      baseOrderParameters.offer = [
-        {
+  describe("Fee", function () {
+    describe("Protocol Fee", function () {
+      it("success bid", async function () {
+        const feeRecipient = "0x0000000000000000000000000000000000000FEE";
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: feeRecipient,
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("success ask", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: feeRecipient,
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("mismatch", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_Recipient],
+          [],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
           token: erc20_1.address,
           identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
+          startAmount: "24",
+          endAmount: "25",
+          recipient: feeRecipient,
+        };
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_StartAmount],
+          [],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "24",
+          recipient: feeRecipient,
+        };
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_EndAmount],
+          [],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
+          itemType: ItemType.ERC20,
           token: erc721_1.address,
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-        {
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        };
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_Token],
+          [],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
+          itemType: ItemType.NATIVE,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        };
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_ItemType],
+          [],
+        ]);
+      });
+
+      it("Protocol fee missing", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721,
+            token: erc721_1.address,
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([
+          [ValidationError.ProtocolFee_Missing],
+          [],
+        ]);
+      });
+    });
+
+    describe("Royalty Fee", function () {
+      it("success: with protocol fee", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: feeRecipient,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            feeRecipient,
+            "250"
+          )
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("success: without protocol fee", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("missing royalty consideration item", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_Missing],
+        ]);
+      });
+
+      it("mismatch", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", // BAYC
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "0",
+            endAmount: "25",
+            recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+          },
+        ];
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_StartAmount],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "0",
+          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        };
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_EndAmount],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
+          itemType: ItemType.ERC20,
+          token: erc1155_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        };
+
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_Token],
+        ]);
+
+        baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
           token: erc20_1.address,
           identifierOrCriteria: "0",
           startAmount: "25",
           endAmount: "25",
           recipient: feeRecipient,
-        },
-      ];
+        };
 
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([[], []]);
-    });
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_Recipient],
+        ]);
 
-    it("success ask", async function () {
-      baseOrderParameters.offer = [
-        {
+        baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC721,
-          token: erc721_1.address,
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "25",
-          endAmount: "25",
-          recipient: feeRecipient,
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([[], []]);
-    });
-
-    it("mismatch", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
-          token: erc721_1.address,
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "25",
-          endAmount: "25",
-          recipient: owner.address,
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_Recipient],
-        [],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "24",
-        endAmount: "25",
-        recipient: feeRecipient,
-      };
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_StartAmount],
-        [],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "24",
-        recipient: feeRecipient,
-      };
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_EndAmount],
-        [],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc721_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "25",
-        recipient: feeRecipient,
-      };
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_Token],
-        [],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.NATIVE,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "25",
-        recipient: feeRecipient,
-      };
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_ItemType],
-        [],
-      ]);
-    });
-
-    it("Protocol fee missing", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC721,
-          token: erc721_1.address,
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-          recipient: owner.address,
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          feeRecipient,
-          "250"
-        )
-      ).to.include.deep.ordered.members([
-        [ValidationError.ProtocolFee_Missing],
-        [],
-      ]);
-    });
-  });
-
-  describe("Royalty Fee", function () {
-    it("success: with protocol fee", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
-          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "25",
-          endAmount: "25",
-          recipient: feeRecipient,
-        },
-        {
-          itemType: ItemType.ERC20,
           token: erc20_1.address,
           identifierOrCriteria: "0",
           startAmount: "25",
           endAmount: "25",
           recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        };
+        expect(
+          await validator.validateFeeRecipients(
+            baseOrderParameters,
+            NULL_ADDRESS,
+            "0"
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ValidationWarning.RoyaltyFee_ItemType],
+        ]);
+      });
+    });
+
+    it("Both items are payment", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateFeeRecipients(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          "0"
+        )
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.FeesUncheckable],
+      ]);
+    });
+
+    it("Both items are nft", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC1155,
+          token: erc1155_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "2",
+          endAmount: "2",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateFeeRecipients(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          "0"
+        )
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.FeesUncheckable],
+      ]);
+    });
+
+    it("Fees uncheckable with required protocol fee", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
         },
       ];
 
@@ -1500,203 +1837,15 @@ describe("Validate Orders", function () {
           feeRecipient,
           "250"
         )
-      ).to.include.deep.ordered.members([[], []]);
-    });
-
-    it("success: without protocol fee", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
-          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "25",
-          endAmount: "25",
-          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([[], []]);
-    });
-
-    it("missing royalty consideration item", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
-          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
       ).to.include.deep.ordered.members([
+        [ValidationError.FeesUncheckable],
         [],
-        [ValidationWarning.RoyaltyFee_Missing],
-      ]);
-    });
-
-    it("mismatch", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
-      ];
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC721,
-          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", // BAYC
-          identifierOrCriteria: "1",
-          startAmount: "1",
-          endAmount: "1",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "0",
-          endAmount: "25",
-          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
-        },
-      ];
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.RoyaltyFee_StartAmount],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "0",
-        recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
-      };
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.RoyaltyFee_EndAmount],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc1155_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "25",
-        recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
-      };
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.RoyaltyFee_Token],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC20,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "25",
-        recipient: feeRecipient,
-      };
-
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.RoyaltyFee_Recipient],
-      ]);
-
-      baseOrderParameters.consideration[1] = {
-        itemType: ItemType.ERC721,
-        token: erc20_1.address,
-        identifierOrCriteria: "0",
-        startAmount: "25",
-        endAmount: "25",
-        recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
-      };
-      expect(
-        await validator.validateFeeRecipients(
-          baseOrderParameters,
-          NULL_ADDRESS,
-          "0"
-        )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.RoyaltyFee_ItemType],
       ]);
     });
   });
 
   describe("Full Scope", function () {
-    it("success", async function () {
+    it("success: validate", async function () {
       await erc721_1.mint(otherAccounts[0].address, 1);
       await erc20_1.mint(owner.address, 1000);
       await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
@@ -1727,6 +1876,50 @@ describe("Validate Orders", function () {
       };
 
       await seaport.validate([order]);
+
+      expect(
+        await validator.callStatic.isValidOrder(order)
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it.only("success: sig", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offerer = otherAccounts[0].address;
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: NULL_ADDRESS,
+        },
+      ];
+      baseOrderParameters.totalOriginalConsiderationItems = 1;
+
+      const order: OrderStruct = await signOrder(
+        baseOrderParameters,
+        otherAccounts[0]
+      );
 
       expect(
         await validator.callStatic.isValidOrder(order)
@@ -1856,7 +2049,7 @@ describe("Validate Orders", function () {
     );
 
     return {
-      parameters: baseOrderParameters,
+      parameters: orderParameters,
       signature: sig,
     };
   }
