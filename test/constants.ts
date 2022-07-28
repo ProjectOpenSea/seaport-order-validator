@@ -105,7 +105,7 @@ export enum ValidationError {
   ProtocolFee_StartAmount,
   ProtocolFee_EndAmount,
   ProtocolFee_Recipient,
-  ConsiderationAmountZero,
+  Consideration_AmountZero,
   ERC721_AmountNotOne,
   ERC721_InvalidToken,
   ERC721_IdentifierDNE,
@@ -127,6 +127,7 @@ export enum ValidationError {
   ConduitKeyInvalid,
   MerkleError,
   FeesUncheckable,
+  Consideration_NullRecipient,
 }
 
 export enum ValidationWarning {

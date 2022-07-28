@@ -486,7 +486,15 @@ contract SeaportValidator is ConsiderationTypeHashes {
             considerationItem.startAmount == 0 &&
             considerationItem.endAmount == 0
         ) {
-            errorsAndWarnings.addError(ValidationError.ConsiderationAmountZero);
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_AmountZero
+            );
+        }
+
+        if (considerationItem.recipient == address(0)) {
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_NullRecipient
+            );
         }
 
         if (considerationItem.itemType == ItemType.ERC721) {

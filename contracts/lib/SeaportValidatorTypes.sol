@@ -19,7 +19,7 @@ enum ValidationError {
     ProtocolFee_StartAmount,
     ProtocolFee_EndAmount,
     ProtocolFee_Recipient,
-    ConsiderationAmountZero,
+    Consideration_AmountZero,
     ERC721_AmountNotOne,
     ERC721_InvalidToken,
     ERC721_IdentifierDNE,
@@ -40,7 +40,8 @@ enum ValidationError {
     Zone_RejectedOrder,
     ConduitKeyInvalid,
     MerkleError,
-    FeesUncheckable
+    FeesUncheckable,
+    Consideration_NullRecipient
 }
 
 enum ValidationWarning {

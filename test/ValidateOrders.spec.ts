@@ -682,6 +682,26 @@ describe("Validate Orders", function () {
       ]);
     });
 
+    it("Null recipient", async function () {
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: NULL_ADDRESS,
+        },
+      ];
+
+      expect(
+        await validator.validateConsiderationItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_NullRecipient],
+        [],
+      ]);
+    });
+
     it("More than three consideration items", async function () {
       baseOrderParameters.offer = [
         {
@@ -751,7 +771,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateConsiderationItems(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        [ValidationError.ConsiderationAmountZero],
+        [ValidationError.Consideration_AmountZero],
         [],
       ]);
     });
@@ -1217,7 +1237,7 @@ describe("Validate Orders", function () {
   }).timeout(60000);
 
   describe("Validate Status", async function () {
-    it.only("fully filled", async function () {
+    it("fully filled", async function () {
       await erc20_1.mint(otherAccounts[0].address, 2000);
       await erc20_1
         .connect(otherAccounts[0])
@@ -1882,20 +1902,12 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[], []]);
     });
 
-    it.only("success: sig", async function () {
+    it("success: sig", async function () {
       await erc721_1.mint(otherAccounts[0].address, 1);
       await erc20_1.mint(owner.address, 1000);
       await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
 
-      baseOrderParameters.offerer = otherAccounts[0].address;
       baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-        },
         {
           itemType: ItemType.ERC20,
           token: erc20_1.address,
@@ -1911,15 +1923,12 @@ describe("Validate Orders", function () {
           identifierOrCriteria: "1",
           startAmount: "1",
           endAmount: "1",
-          recipient: NULL_ADDRESS,
+          recipient: owner.address,
         },
       ];
       baseOrderParameters.totalOriginalConsiderationItems = 1;
 
-      const order: OrderStruct = await signOrder(
-        baseOrderParameters,
-        otherAccounts[0]
-      );
+      const order: OrderStruct = await signOrder(baseOrderParameters, owner);
 
       expect(
         await validator.callStatic.isValidOrder(order)
