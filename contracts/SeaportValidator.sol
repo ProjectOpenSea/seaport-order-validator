@@ -130,12 +130,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         if (orderParameters.endTime <= orderParameters.startTime) {
-            errorsAndWarnings.addError(ValidationError.EndTimeBeforeStartTime);
+            errorsAndWarnings.addError(
+                ValidationError.Time_EndTimeBeforeStartTime
+            );
             return errorsAndWarnings;
         }
 
         if (orderParameters.endTime < block.timestamp) {
-            errorsAndWarnings.addError(ValidationError.OrderExpired);
+            errorsAndWarnings.addError(ValidationError.Time_Expired);
             return errorsAndWarnings;
         } else if (orderParameters.endTime > block.timestamp + (30 weeks)) {
             errorsAndWarnings.addWarning(
@@ -183,11 +185,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
             .getOrderStatus(orderHash);
         // Order is cancelled
         if (isCancelled) {
-            errorsAndWarnings.addError(ValidationError.OrderCancelled);
+            errorsAndWarnings.addError(ValidationError.Status_Cancelled);
         }
 
         if (totalSize > 0 && totalFilled == totalSize) {
-            errorsAndWarnings.addError(ValidationError.OrderFullyFilled);
+            errorsAndWarnings.addError(ValidationError.Status_FullyFilled);
         }
     }
 
@@ -628,7 +630,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
 
         if (offerItem.startAmount == 0 && offerItem.endAmount == 0) {
-            errorsAndWarnings.addError(ValidationError.OfferAmountZero);
+            errorsAndWarnings.addError(ValidationError.Offer_AmountZero);
         }
 
         if (offerItem.itemType == ItemType.ERC721) {
@@ -885,7 +887,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
             conduitKey
         );
         if (!exists) {
-            errorsAndWarnings.addError(ValidationError.ConduitKeyInvalid);
+            errorsAndWarnings.addError(ValidationError.Conduit_KeyInvalid);
             conduitAddress = address(0); // Don't return invalid conduit
         }
         return (conduitAddress, errorsAndWarnings);

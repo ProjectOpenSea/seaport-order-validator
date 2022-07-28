@@ -119,7 +119,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ValidationError.OrderExpired], []]);
+      ).to.include.deep.ordered.members([[ValidationError.Time_Expired], []]);
     });
 
     it("Order not yet active", async function () {
@@ -150,7 +150,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateTime(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        [ValidationError.EndTimeBeforeStartTime],
+        [ValidationError.Time_EndTimeBeforeStartTime],
         [],
       ]);
     });
@@ -1131,7 +1131,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         NULL_ADDRESS,
-        [[ValidationError.ConduitKeyInvalid], []],
+        [[ValidationError.Conduit_KeyInvalid], []],
       ]);
     });
 
@@ -1147,7 +1147,7 @@ describe("Validate Orders", function () {
           "0x0000000000000000000000000000000000000000000000000000000000000099"
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.ConduitKeyInvalid],
+        [ValidationError.Conduit_KeyInvalid],
         [],
       ]);
     });
@@ -1264,7 +1264,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        [ValidationError.OrderFullyFilled],
+        [ValidationError.Status_FullyFilled],
         [],
       ]);
     });
@@ -1289,7 +1289,10 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ValidationError.OrderCancelled], []]);
+      ).to.include.deep.ordered.members([
+        [ValidationError.Status_Cancelled],
+        [],
+      ]);
     });
   });
 
@@ -2036,7 +2039,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.callStatic.isValidOrder(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.OfferAmountZero, ValidationError.ERC721_InvalidToken],
+        [ValidationError.Offer_AmountZero, ValidationError.ERC721_InvalidToken],
         [],
       ]);
     });
