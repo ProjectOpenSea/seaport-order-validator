@@ -238,7 +238,7 @@ describe("Validate Orders", function () {
         .reverted;
     });
 
-    describe("ERC721", async function () {
+    describe("ERC721", function () {
       it("No approval", async function () {
         await erc721_1.mint(owner.address, 2);
 
@@ -412,7 +412,7 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("ERC1155", async function () {
+    describe("ERC1155", function () {
       it("No approval", async function () {
         await erc1155_1.mint(owner.address, 2, 1);
 
@@ -491,7 +491,7 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("ERC20", async function () {
+    describe("ERC20", function () {
       it("No approval", async function () {
         await erc20_1.mint(owner.address, 2000);
 
@@ -593,7 +593,7 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("Native", async function () {
+    describe("Native", function () {
       it("Token address", async function () {
         baseOrderParameters.offer = [
           {
@@ -911,7 +911,7 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("ERC1155", async function () {
+    describe("ERC1155", function () {
       it("ERC1155 invalid token", async function () {
         baseOrderParameters.consideration = [
           {
@@ -992,7 +992,7 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("Native", async function () {
+    describe("Native", function () {
       it("Native invalid token", async function () {
         baseOrderParameters.consideration = [
           {
@@ -1035,7 +1035,408 @@ describe("Validate Orders", function () {
     });
   });
 
-  describe("Validate Zone", async function () {
+  describe("Private Sale", function () {
+    it("Successful private sale", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient, // Arbitrary recipient
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("success with all fees", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient,
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          feeRecipient,
+          "250",
+          true
+        )
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("Private sale extra consideration item", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient, // Arbitrary recipient
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+    });
+
+    it("Private sale to self", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_PrivateSaleToSelf],
+        [],
+      ]);
+    });
+
+    it("Private sale mismatch", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient,
+        },
+      ];
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+
+      baseOrderParameters.consideration[1] = {
+        itemType: ItemType.ERC721,
+        token: erc20_1.address,
+        identifierOrCriteria: "1",
+        startAmount: "1",
+        endAmount: "1",
+        recipient: feeRecipient,
+      };
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+
+      baseOrderParameters.consideration[1] = {
+        itemType: ItemType.ERC721,
+        token: erc721_1.address,
+        identifierOrCriteria: "2",
+        startAmount: "1",
+        endAmount: "1",
+        recipient: feeRecipient,
+      };
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+
+      baseOrderParameters.consideration[1] = {
+        itemType: ItemType.ERC721,
+        token: erc721_1.address,
+        identifierOrCriteria: "1",
+        startAmount: "2",
+        endAmount: "1",
+        recipient: feeRecipient,
+      };
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+
+      baseOrderParameters.consideration[1] = {
+        itemType: ItemType.ERC721,
+        token: erc721_1.address,
+        identifierOrCriteria: "1",
+        startAmount: "1",
+        endAmount: "2",
+        recipient: feeRecipient,
+      };
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+    });
+
+    it("private sale for a bid", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient, // Arbitrary recipient
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          0,
+          false
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.Consideration_ExtraItems],
+        [],
+      ]);
+    });
+
+    it("incorrect royalty fees setting", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: feeRecipient,
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          feeRecipient,
+          "250",
+          true
+        )
+      ).to.include.deep.ordered.members([
+        [ValidationError.RoyaltyFee_ItemType],
+        [],
+      ]);
+    });
+  });
+
+  describe("Validate Zone", function () {
     let testZone: TestZone;
     beforeEach(async function () {
       const TestZone = await ethers.getContractFactory("TestZone");
@@ -1107,7 +1508,7 @@ describe("Validate Orders", function () {
     });
   });
 
-  describe("Conduit Validation", async function () {
+  describe("Conduit Validation", function () {
     it("null conduit", async function () {
       // null conduit key points to seaport
       expect(
@@ -1236,7 +1637,7 @@ describe("Validate Orders", function () {
     });
   }).timeout(60000);
 
-  describe("Validate Status", async function () {
+  describe("Validate Status", function () {
     it("fully filled", async function () {
       await erc20_1.mint(otherAccounts[0].address, 2000);
       await erc20_1
@@ -1329,10 +1730,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([[], []]);
       });
@@ -1367,10 +1769,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([[], []]);
       });
@@ -1405,10 +1808,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_Recipient],
@@ -1425,10 +1829,11 @@ describe("Validate Orders", function () {
         };
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_StartAmount],
@@ -1445,10 +1850,11 @@ describe("Validate Orders", function () {
         };
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_EndAmount],
@@ -1464,10 +1870,11 @@ describe("Validate Orders", function () {
           recipient: feeRecipient,
         };
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_Token],
@@ -1483,10 +1890,11 @@ describe("Validate Orders", function () {
           recipient: feeRecipient,
         };
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_ItemType],
@@ -1516,10 +1924,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([
           [ValidationError.ProtocolFee_Missing],
@@ -1567,10 +1976,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             feeRecipient,
-            "250"
+            "250",
+            true
           )
         ).to.include.deep.ordered.members([[], []]);
       });
@@ -1605,10 +2015,11 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([[], []]);
       });
@@ -1635,14 +2046,15 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_Missing],
           [],
-          [ValidationWarning.RoyaltyFee_Missing],
         ]);
       });
 
@@ -1676,14 +2088,15 @@ describe("Validate Orders", function () {
         ];
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_StartAmount],
           [],
-          [ValidationWarning.RoyaltyFee_StartAmount],
         ]);
 
         baseOrderParameters.consideration[1] = {
@@ -1696,14 +2109,15 @@ describe("Validate Orders", function () {
         };
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_EndAmount],
           [],
-          [ValidationWarning.RoyaltyFee_EndAmount],
         ]);
 
         baseOrderParameters.consideration[1] = {
@@ -1716,14 +2130,15 @@ describe("Validate Orders", function () {
         };
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_Token],
           [],
-          [ValidationWarning.RoyaltyFee_Token],
         ]);
 
         baseOrderParameters.consideration[1] = {
@@ -1736,14 +2151,15 @@ describe("Validate Orders", function () {
         };
 
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_Recipient],
           [],
-          [ValidationWarning.RoyaltyFee_Recipient],
         ]);
 
         baseOrderParameters.consideration[1] = {
@@ -1755,14 +2171,15 @@ describe("Validate Orders", function () {
           recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
         };
         expect(
-          await validator.validateFeeRecipients(
+          await validator.validateStrictLogic(
             baseOrderParameters,
             NULL_ADDRESS,
-            "0"
+            "0",
+            true
           )
         ).to.include.deep.ordered.members([
+          [ValidationError.RoyaltyFee_ItemType],
           [],
-          [ValidationWarning.RoyaltyFee_ItemType],
         ]);
       });
     });
@@ -1789,14 +2206,15 @@ describe("Validate Orders", function () {
       ];
 
       expect(
-        await validator.validateFeeRecipients(
+        await validator.validateStrictLogic(
           baseOrderParameters,
           NULL_ADDRESS,
-          "0"
+          "0",
+          true
         )
       ).to.include.deep.ordered.members([
+        [ValidationError.InvalidOrderFormat],
         [],
-        [ValidationWarning.FeesUncheckable],
       ]);
     });
 
@@ -1822,14 +2240,15 @@ describe("Validate Orders", function () {
       ];
 
       expect(
-        await validator.validateFeeRecipients(
+        await validator.validateStrictLogic(
           baseOrderParameters,
           NULL_ADDRESS,
-          "0"
+          "0",
+          true
         )
       ).to.include.deep.ordered.members([
+        [ValidationError.InvalidOrderFormat],
         [],
-        [ValidationWarning.FeesUncheckable],
       ]);
     });
 
@@ -1855,13 +2274,14 @@ describe("Validate Orders", function () {
       ];
 
       expect(
-        await validator.validateFeeRecipients(
+        await validator.validateStrictLogic(
           baseOrderParameters,
           feeRecipient,
-          "250"
+          "250",
+          true
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.FeesUncheckable],
+        [ValidationError.InvalidOrderFormat],
         [],
       ]);
     });
@@ -2000,8 +2420,8 @@ describe("Validate Orders", function () {
       expect(
         await validator.callStatic.isValidOrder(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.Offer_ZeroItems],
-        [ValidationWarning.FeesUncheckable],
+        [ValidationError.Offer_ZeroItems, ValidationError.InvalidOrderFormat],
+        [],
       ]);
     });
 

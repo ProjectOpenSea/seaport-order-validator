@@ -2,8 +2,9 @@
 pragma solidity ^0.8.10;
 
 struct ValidationConfiguration {
-    address ProtocolFee_Recipient;
+    address protocolFeeRecipient;
     uint256 protocolFeeBips;
+    bool checkRoyaltyFee;
 }
 
 enum ValidationError {
@@ -15,6 +16,8 @@ enum ValidationError {
     Offer_AmountZero,
     Consideration_AmountZero,
     Consideration_NullRecipient,
+    Consideration_ExtraItems,
+    Consideration_PrivateSaleToSelf,
     ProtocolFee_Missing,
     ProtocolFee_ItemType,
     ProtocolFee_Token,
@@ -40,8 +43,14 @@ enum ValidationError {
     Conduit_KeyInvalid,
     InvalidItemType,
     MerkleError,
-    FeesUncheckable,
-    InvalidSignature
+    InvalidOrderFormat,
+    InvalidSignature,
+    RoyaltyFee_Missing,
+    RoyaltyFee_ItemType,
+    RoyaltyFee_Token,
+    RoyaltyFee_StartAmount,
+    RoyaltyFee_EndAmount,
+    RoyaltyFee_Recipient
 }
 
 enum ValidationWarning {
@@ -49,14 +58,7 @@ enum ValidationWarning {
     Time_NotActive,
     Time_ShortOrder,
     Offer_MoreThanOneItem,
-    Consideration_ZeroItems,
-    Consideration_MoreThanThreeItems,
     Offer_NativeItem,
-    RoyaltyFee_Missing,
-    RoyaltyFee_ItemType,
-    RoyaltyFee_Token,
-    RoyaltyFee_StartAmount,
-    RoyaltyFee_EndAmount,
-    RoyaltyFee_Recipient,
-    FeesUncheckable
+    Consideration_ZeroItems,
+    Consideration_MoreThanThreeItems
 }

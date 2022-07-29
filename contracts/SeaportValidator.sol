@@ -74,7 +74,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
         return
             isValidOrderWithConfiguration(
                 order,
-                ValidationConfiguration(address(0), 0)
+                ValidationConfiguration(address(0), 0, false)
             );
     }
 
@@ -90,10 +90,11 @@ contract SeaportValidator is ConsiderationTypeHashes {
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(isValidZone(order.parameters));
         errorsAndWarnings.concat(
-            validateFeeRecipients(
+            validateStrictLogic(
                 order.parameters,
-                validationConfiguration.ProtocolFee_Recipient,
-                validationConfiguration.protocolFeeBips
+                validationConfiguration.protocolFeeRecipient,
+                validationConfiguration.protocolFeeBips,
+                validationConfiguration.checkRoyaltyFee
             )
         );
 
@@ -254,32 +255,33 @@ contract SeaportValidator is ConsiderationTypeHashes {
     }
 
     /**
-     * @notice Validates the protocol and royalty fee recipients for an order.
-     *    Only checks first fee recipient provided by RoyaltyRegistry.
+     * @notice Strict validation operates under tight assumptions. It validates protocol
+     *    fee, royalty fee, private sale consideration, and overall order format.
+     * @dev Only checks first fee recipient provided by RoyaltyRegistry.
+     *    Order of consideration items must be as follows:
+     *    1. Primary consideration
+     *    2. Protocol fee
+     *    3. Royalty Fee
+     *    4. Private sale consideration
      * @param orderParameters The parameters for the order to validate.
-     * @param ProtocolFee_Recipient The protocol fee recipient.
+     * @param protocolFeeRecipient The protocol fee recipient. Set to null address for no protocol fee.
      * @param protocolFeeBips The protocol fee in BIPs.
+     * @param checkRoyaltyFee Should check for royalty fee. If true, royalty fee must be present as
+     *    according to royalty engine. If false, must not have royalty fee.
      * @return errorsAndWarnings The errors and warnings.
      */
-    function validateFeeRecipients(
+    function validateStrictLogic(
         OrderParameters memory orderParameters,
-        address ProtocolFee_Recipient,
-        uint256 protocolFeeBips
+        address protocolFeeRecipient,
+        uint256 protocolFeeBips,
+        bool checkRoyaltyFee
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        address feeToken;
-        address assetAddress;
-        ItemType feeItemType;
-        uint256 assetIdentifier;
-        uint256 transactionAmountStart;
-        uint256 transactionAmountEnd;
 
         {
             bool canCheckFee = true;
             if (
                 orderParameters.offer.length != 1 ||
-                orderParameters.consideration.length > 3 ||
                 orderParameters.consideration.length == 0
             ) {
                 // Not bid or ask, can't check fees
@@ -298,22 +300,62 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 canCheckFee = false;
             }
             if (!canCheckFee) {
-                if (protocolFeeBips != 0) {
-                    // Error since can't check protocol fee
-                    errorsAndWarnings.addError(ValidationError.FeesUncheckable);
-                } else {
-                    errorsAndWarnings.addWarning(
-                        ValidationWarning.FeesUncheckable
-                    );
-                }
+                errorsAndWarnings.addError(ValidationError.InvalidOrderFormat);
                 return errorsAndWarnings;
             }
         }
 
+        (
+            uint256 tertiaryConsiderationIndex,
+            ErrorsAndWarnings memory errorsAndWarningsLocal
+        ) = validateSecondaryConsiderationItems(
+                orderParameters,
+                protocolFeeRecipient,
+                protocolFeeBips,
+                checkRoyaltyFee
+            );
+
+        errorsAndWarnings.concat(errorsAndWarningsLocal);
+
+        if (tertiaryConsiderationIndex != 0) {
+            errorsAndWarnings.concat(
+                validateTertiaryConsiderationItems(
+                    orderParameters,
+                    tertiaryConsiderationIndex
+                )
+            );
+        }
+    }
+
+    function validateSecondaryConsiderationItems(
+        OrderParameters memory orderParameters,
+        address protocolFeeRecipient,
+        uint256 protocolFeeBips,
+        bool checkRoyaltyFee
+    )
+        internal
+        view
+        returns (
+            uint256 tertiaryConsiderationIndex,
+            ErrorsAndWarnings memory errorsAndWarnings
+        )
+    {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        // Check protocol fee
+        address assetAddress;
+        uint256 assetIdentifier;
+        uint256 transactionAmountStart;
+        uint256 transactionAmountEnd;
+
+        ConsiderationItem memory royaltyFeeConsideration;
+
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
             // Offer is a bid
-            feeItemType = orderParameters.offer[0].itemType;
-            feeToken = orderParameters.offer[0].token;
+            royaltyFeeConsideration.itemType = orderParameters
+                .offer[0]
+                .itemType;
+            royaltyFeeConsideration.token = orderParameters.offer[0].token;
             transactionAmountStart = orderParameters.offer[0].startAmount;
             transactionAmountEnd = orderParameters.offer[0].endAmount;
 
@@ -323,8 +365,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 .identifierOrCriteria;
         } else {
             // Assume order must be an ask
-            feeItemType = orderParameters.consideration[0].itemType;
-            feeToken = orderParameters.consideration[0].token;
+            royaltyFeeConsideration.itemType = orderParameters
+                .consideration[0]
+                .itemType;
+            royaltyFeeConsideration.token = orderParameters
+                .consideration[0]
+                .token;
             transactionAmountStart = orderParameters
                 .consideration[0]
                 .startAmount;
@@ -334,23 +380,23 @@ contract SeaportValidator is ConsiderationTypeHashes {
             assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
         }
 
-        if (protocolFeeBips != 0) {
+        if (protocolFeeRecipient != address(0)) {
             if (orderParameters.consideration.length < 2) {
                 errorsAndWarnings.addError(ValidationError.ProtocolFee_Missing);
-                return errorsAndWarnings;
+                return (0, errorsAndWarnings);
             }
 
             ConsiderationItem memory protocolFeeItem = orderParameters
                 .consideration[1];
 
-            if (protocolFeeItem.itemType != feeItemType) {
+            if (protocolFeeItem.itemType != royaltyFeeConsideration.itemType) {
                 errorsAndWarnings.addError(
                     ValidationError.ProtocolFee_ItemType
                 );
-                return errorsAndWarnings;
+                return (0, errorsAndWarnings);
             }
 
-            if (protocolFeeItem.token != feeToken) {
+            if (protocolFeeItem.token != royaltyFeeConsideration.token) {
                 errorsAndWarnings.addError(ValidationError.ProtocolFee_Token);
             }
             if (
@@ -369,17 +415,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     ValidationError.ProtocolFee_EndAmount
                 );
             }
-            if (protocolFeeItem.recipient != ProtocolFee_Recipient) {
+            if (protocolFeeItem.recipient != protocolFeeRecipient) {
                 errorsAndWarnings.addError(
                     ValidationError.ProtocolFee_Recipient
                 );
             }
         }
 
-        address royaltyRecipient;
-        uint256 royaltyAmountStart;
-        uint256 royaltyAmountEnd;
-
+        // Check royalty fee
         {
             (
                 address payable[] memory royaltyRecipients,
@@ -390,8 +433,8 @@ contract SeaportValidator is ConsiderationTypeHashes {
                     transactionAmountStart
                 );
             if (royaltyRecipients.length != 0) {
-                royaltyRecipient = royaltyRecipients[0];
-                royaltyAmountStart = royaltyAmountsStart[0];
+                royaltyFeeConsideration.recipient = royaltyRecipients[0];
+                royaltyFeeConsideration.startAmount = royaltyAmountsStart[0];
 
                 (, uint256[] memory royaltyAmountsEnd) = royaltyEngine
                     .getRoyaltyView(
@@ -399,11 +442,15 @@ contract SeaportValidator is ConsiderationTypeHashes {
                         assetIdentifier,
                         transactionAmountEnd
                     );
-                royaltyAmountEnd = royaltyAmountsEnd[0];
+                royaltyFeeConsideration.endAmount = royaltyAmountsEnd[0];
             }
         }
 
-        if (royaltyRecipient != address(0)) {
+        bool royaltyFeePresent = false;
+
+        if (
+            royaltyFeeConsideration.recipient != address(0) && checkRoyaltyFee
+        ) {
             uint16 royaltyConsiderationIndex = protocolFeeBips != 0 ? 2 : 1; // 2 if protocol fee, ow 1
 
             // Check that royalty consideration item exists
@@ -411,41 +458,99 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 orderParameters.consideration.length - 1 <
                 royaltyConsiderationIndex
             ) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_Missing
-                );
-                return errorsAndWarnings;
+                errorsAndWarnings.addError(ValidationError.RoyaltyFee_Missing);
+                return (0, errorsAndWarnings);
             }
 
             ConsiderationItem memory royaltyFeeItem = orderParameters
                 .consideration[royaltyConsiderationIndex];
+            royaltyFeePresent = true;
 
-            if (royaltyFeeItem.itemType != feeItemType) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_ItemType
-                );
-                return errorsAndWarnings;
+            if (royaltyFeeItem.itemType != royaltyFeeConsideration.itemType) {
+                errorsAndWarnings.addError(ValidationError.RoyaltyFee_ItemType);
+                return (0, errorsAndWarnings);
             }
-            if (royaltyFeeItem.token != feeToken) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_Token
-                );
+            if (royaltyFeeItem.token != royaltyFeeConsideration.token) {
+                errorsAndWarnings.addError(ValidationError.RoyaltyFee_Token);
             }
-            if (royaltyFeeItem.startAmount < royaltyAmountStart) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_StartAmount
+            if (
+                royaltyFeeItem.startAmount < royaltyFeeConsideration.startAmount
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.RoyaltyFee_StartAmount
                 );
             }
-            if (royaltyFeeItem.endAmount < royaltyAmountEnd) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_EndAmount
+            if (royaltyFeeItem.endAmount < royaltyFeeConsideration.endAmount) {
+                errorsAndWarnings.addError(
+                    ValidationError.RoyaltyFee_EndAmount
                 );
             }
-            if (royaltyFeeItem.recipient != royaltyRecipient) {
-                errorsAndWarnings.addWarning(
-                    ValidationWarning.RoyaltyFee_Recipient
+            if (royaltyFeeItem.recipient != royaltyFeeConsideration.recipient) {
+                errorsAndWarnings.addError(
+                    ValidationError.RoyaltyFee_Recipient
                 );
             }
+        }
+
+        // Check additional consideration items
+        tertiaryConsiderationIndex =
+            1 +
+            (protocolFeeBips != 0 ? 1 : 0) +
+            (royaltyFeePresent ? 1 : 0);
+    }
+
+    function validateTertiaryConsiderationItems(
+        OrderParameters memory orderParameters,
+        uint256 considerationItemIndex
+    ) internal pure returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        if (orderParameters.consideration.length <= considerationItemIndex) {
+            // Not a private sale
+            return errorsAndWarnings;
+        }
+
+        ConsiderationItem memory privateSaleConsideration = orderParameters
+            .consideration[considerationItemIndex];
+
+        if (isPaymentToken(orderParameters.offer[0].itemType)) {
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_ExtraItems
+            );
+            return errorsAndWarnings;
+        }
+
+        if (privateSaleConsideration.recipient == orderParameters.offerer) {
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_PrivateSaleToSelf
+            );
+            return errorsAndWarnings;
+        }
+
+        if (
+            privateSaleConsideration.itemType !=
+            orderParameters.offer[0].itemType ||
+            privateSaleConsideration.token != orderParameters.offer[0].token ||
+            orderParameters.offer[0].startAmount !=
+            privateSaleConsideration.startAmount ||
+            orderParameters.offer[0].endAmount !=
+            privateSaleConsideration.endAmount ||
+            orderParameters.offer[0].identifierOrCriteria !=
+            privateSaleConsideration.identifierOrCriteria
+        ) {
+            // Invalid private sale, say extra consideration item
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_ExtraItems
+            );
+            return errorsAndWarnings;
+        }
+
+        if (orderParameters.consideration.length - 1 > considerationItemIndex) {
+            // Extra consideration items
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_ExtraItems
+            );
+            return errorsAndWarnings;
         }
     }
 
@@ -913,6 +1018,21 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
     }
 
+    function isPaymentToken(ItemType itemType) public pure returns (bool) {
+        return itemType == ItemType.NATIVE || itemType == ItemType.ERC20;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        Merkle Helpers
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Creates a merkle proof for the the targetIndex contained in includedTokens.
+     * @dev `targetIndex` is referring to the index of an element in `includedTokens`.
+     *    `includedTokens` must be sorting in ascending order according to the keccak256 hash of the value.
+     * @return merkleProof The merkle proof
+     * @return errorsAndWarnings Errors and warnings from the operation
+     */
     function getMerkleProof(
         uint256[] memory includedTokens,
         uint256 targetIndex
@@ -941,6 +1061,12 @@ contract SeaportValidator is ConsiderationTypeHashes {
         return (abi.decode(res, (bytes32[])), errorsAndWarnings);
     }
 
+    /**
+     * @notice Creates a merkle root for includedTokens.
+     * @dev `includedTokens` must be sorting in ascending order according to the keccak256 hash of the value.
+     * @return merkleRoot The merkle root
+     * @return errorsAndWarnings Errors and warnings from the operation
+     */
     function getMerkleRoot(uint256[] memory includedTokens)
         public
         view
@@ -957,9 +1083,5 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         return (abi.decode(res, (bytes32)), errorsAndWarnings);
-    }
-
-    function isPaymentToken(ItemType itemType) public pure returns (bool) {
-        return itemType == ItemType.NATIVE || itemType == ItemType.ERC20;
     }
 }
