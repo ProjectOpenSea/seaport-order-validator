@@ -2291,6 +2291,119 @@ describe("Validate Orders", function () {
     });
   });
 
+  describe("Validate Signature", function () {
+    it("1271: success", async function () {
+      const factoryErc1271 = await ethers.getContractFactory("TestERC1271");
+      const erc1271 = await factoryErc1271.deploy(owner.address);
+
+      baseOrderParameters.offerer = erc1271.address;
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, owner);
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("1271: failure", async function () {
+      const factoryErc1271 = await ethers.getContractFactory("TestERC1271");
+      const erc1271 = await factoryErc1271.deploy(owner.address);
+
+      baseOrderParameters.offerer = erc1271.address;
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, otherAccounts[0]);
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([
+        [ValidationError.InvalidSignature],
+        [],
+      ]);
+    });
+
+    it("1271: failure 2", async function () {
+      const factoryErc1271 = await ethers.getContractFactory("TestERC1271");
+      const erc1271 = await factoryErc1271.deploy(owner.address);
+
+      baseOrderParameters.offerer = erc1271.address;
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, otherAccounts[0]);
+      let sig: string = String(order.signature);
+      sig = sig.substring(0, sig.length - 6) + "0".repeat(6);
+      order.signature = sig;
+
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([
+        [ValidationError.InvalidSignature],
+        [],
+      ]);
+    });
+
+    it("712: success", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, owner);
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("712: failure", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = { parameters: baseOrderParameters, signature: "0x" };
+
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([
+        [ValidationError.InvalidSignature],
+        [],
+      ]);
+    });
+  });
+
   describe("Full Scope", function () {
     it("success: validate", async function () {
       await erc721_1.mint(otherAccounts[0].address, 1);
@@ -2424,7 +2537,11 @@ describe("Validate Orders", function () {
       expect(
         await validator.callStatic.isValidOrder(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.Offer_ZeroItems, ValidationError.InvalidOrderFormat],
+        [
+          ValidationError.Offer_ZeroItems,
+          ValidationError.InvalidOrderFormat,
+          ValidationError.InvalidSignature,
+        ],
         [],
       ]);
     });
@@ -2463,7 +2580,11 @@ describe("Validate Orders", function () {
       expect(
         await validator.callStatic.isValidOrder(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.Offer_AmountZero, ValidationError.ERC721_InvalidToken],
+        [
+          ValidationError.Offer_AmountZero,
+          ValidationError.ERC721_InvalidToken,
+          ValidationError.InvalidSignature,
+        ],
         [],
       ]);
     });

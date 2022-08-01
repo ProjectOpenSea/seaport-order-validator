@@ -35,6 +35,7 @@ import {
     ValidationError,
     ValidationWarning
 } from "./lib/SeaportValidatorTypes.sol";
+import { SignatureVerification } from "./lib/SignatureVerification.sol";
 
 /**
  * @title SeaportValidator
@@ -46,7 +47,7 @@ import {
  *    - Offer items must be owned and properly approved by the offerer.
  *    - Consideration items must exist.
  */
-contract SeaportValidator is ConsiderationTypeHashes {
+contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using SafeStaticCall for address;
 
@@ -69,6 +70,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
      */
     function isValidOrder(Order calldata order)
         external
+        view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
         return
@@ -78,10 +80,13 @@ contract SeaportValidator is ConsiderationTypeHashes {
             );
     }
 
+    /**
+     * @notice Same as `isValidOrder` but allows for more configuration related to fee validation.
+     */
     function isValidOrderWithConfiguration(
         Order memory order,
         ValidationConfiguration memory validationConfiguration
-    ) public returns (ErrorsAndWarnings memory errorsAndWarnings) {
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         errorsAndWarnings.concat(validateTime(order.parameters));
@@ -97,19 +102,14 @@ contract SeaportValidator is ConsiderationTypeHashes {
                 validationConfiguration.checkRoyaltyFee
             )
         );
-
-        Order[] memory orders = new Order[](1);
-        orders[0] = order;
-
-        // Successful if sig valid or validated on chain
-        if (!errorsAndWarnings.hasErrors()) {
-            try seaport.validate(orders) {} catch {
-                // Not validated on chain, and sig not currently valid
-                errorsAndWarnings.addError(ValidationError.InvalidSignature);
-            }
-        }
+        errorsAndWarnings.concat(validateSignature(order));
     }
 
+    /**
+     * @notice Checks if a conduit key is valid.
+     * @param conduitKey The conduit key to check.
+     * @return errorsAndWarnings The errors and warnings
+     */
     function isValidConduit(bytes32 conduitKey)
         external
         view
@@ -118,10 +118,38 @@ contract SeaportValidator is ConsiderationTypeHashes {
         (, errorsAndWarnings) = getApprovalAddress(conduitKey);
     }
 
+    function validateSignature(Order memory order)
+        public
+        view
+        returns (ErrorsAndWarnings memory errorsAndWarnings)
+    {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        uint256 currentCounter = seaport.getCounter(order.parameters.offerer);
+        bytes32 orderHash = _deriveOrderHash(order.parameters, currentCounter);
+
+        (bool isValid, , , ) = seaport.getOrderStatus(orderHash);
+
+        if (isValid) {
+            return errorsAndWarnings;
+        }
+
+        bytes32 eip712Digest = _deriveEIP712Digest(orderHash);
+        if (
+            !_isValidSignature(
+                order.parameters.offerer,
+                eip712Digest,
+                order.signature
+            )
+        ) {
+            errorsAndWarnings.addError(ValidationError.InvalidSignature);
+        }
+    }
+
     /**
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
-     * @return errorsAndWarnings  The errors and warnings
+     * @return errorsAndWarnings The errors and warnings
      */
     function validateTime(OrderParameters memory orderParameters)
         public
