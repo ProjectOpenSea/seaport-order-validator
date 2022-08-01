@@ -1615,18 +1615,7 @@ describe("Validate Orders", function () {
     });
 
     it("Create root: incorrect order", async function () {
-      const input = [...Array(5).keys()].sort((a, b) => {
-        return ethers.utils.keccak256(
-          ethers.utils.hexZeroPad(ethers.utils.hexlify(a), 32)
-        ) >
-          ethers.utils.keccak256(
-            ethers.utils.hexZeroPad(ethers.utils.hexlify(b), 32)
-          )
-          ? 1
-          : -1;
-      });
-
-      [input[0], input[1]] = [input[1], input[0]];
+      const input = [...Array(5).keys()];
 
       const res = await validator.getMerkleRoot(input);
       expect(res.merkleRoot).to.equal(EMPTY_BYTES32);
@@ -1634,6 +1623,21 @@ describe("Validate Orders", function () {
         [ValidationError.MerkleError],
         [],
       ]);
+    });
+
+    it("Sort tokens", async function () {
+      const input = [...Array(5).keys()];
+
+      const sortedInput = await validator.sortMerkleTokens(input);
+      expect(sortedInput).to.deep.equal([0, 2, 4, 1, 3]);
+    });
+
+    it("Sort tokens 2", async function () {
+      const input = [...Array(5).keys()];
+
+      const sortedInput = await validator.sortMerkleTokens(input);
+      const sortedInput2 = await validator.sortMerkleTokens(sortedInput);
+      expect(sortedInput2).to.deep.equal([0, 2, 4, 1, 3]);
     });
   }).timeout(60000);
 

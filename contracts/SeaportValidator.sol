@@ -1063,7 +1063,7 @@ contract SeaportValidator is ConsiderationTypeHashes {
 
     /**
      * @notice Creates a merkle root for includedTokens.
-     * @dev `includedTokens` must be sorting in ascending order according to the keccak256 hash of the value.
+     * @dev `includedTokens` must be sorting in strictly ascending order according to the keccak256 hash of the value.
      * @return merkleRoot The merkle root
      * @return errorsAndWarnings Errors and warnings from the operation
      */
@@ -1083,5 +1083,19 @@ contract SeaportValidator is ConsiderationTypeHashes {
         }
 
         return (abi.decode(res, (bytes32)), errorsAndWarnings);
+    }
+
+    /**
+     * @notice Sorts an array of token ids by the keccak256 hash of the id. Required ordering of ids
+     *    for other merkle operations.
+     * @param includedTokens An array of included token ids.
+     * @return sortedTokens The sorted `includedTokens` array.
+     */
+    function sortMerkleTokens(uint256[] memory includedTokens)
+        public
+        view
+        returns (uint256[] memory sortedTokens)
+    {
+        return murky.sortUint256ByHash(includedTokens);
     }
 }

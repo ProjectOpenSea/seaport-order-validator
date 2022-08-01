@@ -315,4 +315,56 @@ contract Murky {
             }
         }
     }
+
+    // Sort uint256 in order of the keccak256 hashes
+    struct HashAndIntTuple {
+        uint256 num;
+        bytes32 hash;
+    }
+
+    function sortUint256ByHash(uint256[] memory values)
+        public
+        view
+        returns (uint256[] memory sortedValues)
+    {
+        HashAndIntTuple[] memory toSort = new HashAndIntTuple[](values.length);
+        for (uint256 i = 0; i < values.length; i++) {
+            toSort[i] = HashAndIntTuple(
+                values[i],
+                keccak256(abi.encode(values[i]))
+            );
+        }
+
+        quickSort(toSort, 0, int256(toSort.length - 1));
+
+        sortedValues = new uint256[](values.length);
+        for (uint256 i = 0; i < values.length; i++) {
+            sortedValues[i] = toSort[i].num;
+        }
+    }
+
+    function quickSort(
+        HashAndIntTuple[] memory arr,
+        int256 left,
+        int256 right
+    ) internal view {
+        int256 i = left;
+        int256 j = right;
+        if (i == j) return;
+        bytes32 pivot = arr[uint256(left + (right - left) / 2)].hash;
+        while (i <= j) {
+            while (arr[uint256(i)].hash < pivot) i++;
+            while (pivot < arr[uint256(j)].hash) j--;
+            if (i <= j) {
+                (arr[uint256(i)], arr[uint256(j)]) = (
+                    arr[uint256(j)],
+                    arr[uint256(i)]
+                );
+                i++;
+                j--;
+            }
+        }
+        if (left < j) quickSort(arr, left, j);
+        if (i < right) quickSort(arr, i, right);
+    }
 }
