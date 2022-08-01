@@ -51,13 +51,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using SafeStaticCall for address;
 
-    ConsiderationInterface constant seaport =
+    ConsiderationInterface public constant seaport =
         ConsiderationInterface(0x00000000006c3852cbEf3e08E8dF289169EdE581);
-    ConduitControllerInterface constant conduitController =
+    ConduitControllerInterface public constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
-    RoyaltyEngineInterface constant royaltyEngine =
+    RoyaltyEngineInterface public constant royaltyEngine =
         RoyaltyEngineInterface(0x0385603ab55642cb4Dd5De3aE9e306809991804f);
-    Murky immutable murky;
+    Murky public immutable murky;
 
     constructor() {
         murky = new Murky(false);
@@ -1049,6 +1049,44 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Sorts an array of token ids by the keccak256 hash of the id. Required ordering of ids
+     *    for other merkle operations.
+     * @param includedTokens An array of included token ids.
+     * @return sortedTokens The sorted `includedTokens` array.
+     */
+    function sortMerkleTokens(uint256[] memory includedTokens)
+        public
+        view
+        returns (uint256[] memory sortedTokens)
+    {
+        return murky.sortUint256ByHash(includedTokens);
+    }
+
+    /**
+     * @notice Creates a merkle root for includedTokens.
+     * @dev `includedTokens` must be sorting in strictly ascending order according to the keccak256 hash of the value.
+     * @return merkleRoot The merkle root
+     * @return errorsAndWarnings Errors and warnings from the operation
+     */
+    function getMerkleRoot(uint256[] memory includedTokens)
+        public
+        view
+        returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
+    {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        (bool success, bytes memory res) = address(murky).staticcall(
+            abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
+        );
+        if (!success) {
+            errorsAndWarnings.addError(ValidationError.MerkleError);
+            return (0, errorsAndWarnings);
+        }
+
+        return (abi.decode(res, (bytes32)), errorsAndWarnings);
+    }
+
+    /**
      * @notice Creates a merkle proof for the the targetIndex contained in includedTokens.
      * @dev `targetIndex` is referring to the index of an element in `includedTokens`.
      *    `includedTokens` must be sorting in ascending order according to the keccak256 hash of the value.
@@ -1083,41 +1121,21 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         return (abi.decode(res, (bytes32[])), errorsAndWarnings);
     }
 
-    /**
-     * @notice Creates a merkle root for includedTokens.
-     * @dev `includedTokens` must be sorting in strictly ascending order according to the keccak256 hash of the value.
-     * @return merkleRoot The merkle root
-     * @return errorsAndWarnings Errors and warnings from the operation
-     */
-    function getMerkleRoot(uint256[] memory includedTokens)
-        public
-        view
-        returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
-    {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        (bool success, bytes memory res) = address(murky).staticcall(
-            abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
-        );
-        if (!success) {
-            errorsAndWarnings.addError(ValidationError.MerkleError);
-            return (0, errorsAndWarnings);
-        }
-
-        return (abi.decode(res, (bytes32)), errorsAndWarnings);
-    }
-
-    /**
-     * @notice Sorts an array of token ids by the keccak256 hash of the id. Required ordering of ids
-     *    for other merkle operations.
-     * @param includedTokens An array of included token ids.
-     * @return sortedTokens The sorted `includedTokens` array.
-     */
-    function sortMerkleTokens(uint256[] memory includedTokens)
-        public
-        view
-        returns (uint256[] memory sortedTokens)
-    {
-        return murky.sortUint256ByHash(includedTokens);
+    function verifyMerkleProof(
+        bytes32 merkleRoot,
+        bytes32[] memory merkleProof,
+        uint256 valueToProve
+    ) public view returns (bool) {
+        bytes32 hashedValue = keccak256(abi.encode(valueToProve));
+        return
+            address(murky).safeStaticCallBool(
+                abi.encodeWithSelector(
+                    murky.verifyProof.selector,
+                    merkleRoot,
+                    merkleProof,
+                    hashedValue
+                ),
+                true
+            );
     }
 }

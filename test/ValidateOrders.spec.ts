@@ -1585,6 +1585,46 @@ describe("Validate Orders", function () {
       const sortedInput2 = await validator.sortMerkleTokens(sortedInput);
       expect(sortedInput2).to.deep.equal([0, 2, 4, 1, 3]);
     });
+
+    it("Verify merkle proof", async function () {
+      const input = [...Array(10).keys()].sort((a, b) => {
+        return ethers.utils.keccak256(
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(a), 32)
+        ) >
+          ethers.utils.keccak256(
+            ethers.utils.hexZeroPad(ethers.utils.hexlify(b), 32)
+          )
+          ? 1
+          : -1;
+      });
+
+      const merkleRoot = (await validator.getMerkleRoot(input)).merkleRoot;
+      const merkleProof = (await validator.getMerkleProof(input, 2))
+        .merkleProof;
+      expect(
+        await validator.verifyMerkleProof(merkleRoot, merkleProof, input[2])
+      ).to.equal(true);
+    });
+
+    it("Invalid merkle proof", async function () {
+      const input = [...Array(10).keys()].sort((a, b) => {
+        return ethers.utils.keccak256(
+          ethers.utils.hexZeroPad(ethers.utils.hexlify(a), 32)
+        ) >
+          ethers.utils.keccak256(
+            ethers.utils.hexZeroPad(ethers.utils.hexlify(b), 32)
+          )
+          ? 1
+          : -1;
+      });
+
+      const merkleRoot = (await validator.getMerkleRoot(input)).merkleRoot;
+      const merkleProof = (await validator.getMerkleProof(input, 1))
+        .merkleProof;
+      expect(
+        await validator.verifyMerkleProof(merkleRoot, merkleProof, input[2])
+      ).to.equal(false);
+    });
   }).timeout(60000);
 
   describe("Validate Status", function () {
@@ -2347,6 +2387,26 @@ describe("Validate Orders", function () {
         [ValidationError.InvalidSignature],
         [],
       ]);
+    });
+
+    it("Validate on-chain", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = { parameters: baseOrderParameters, signature: "0x" };
+
+      await seaport.validate([order]);
+
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([[], []]);
     });
   });
 
