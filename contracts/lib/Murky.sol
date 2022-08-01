@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.10;
 
-/// @notice Nascent, simple, kinda efficient (and improving!) Merkle proof generator and verifier
-/// @author dmfxyz
-/// @dev Note Generic Merkle Tree
 contract Murky {
     bool public immutable HASH_ODD_WITH_ZERO;
 

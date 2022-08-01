@@ -274,12 +274,6 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 validateConsiderationItem(orderParameters, i)
             );
         }
-
-        if (orderParameters.consideration.length > 3) {
-            errorsAndWarnings.addWarning(
-                ValidationWarning.Consideration_MoreThanThreeItems
-            );
-        }
     }
 
     /**

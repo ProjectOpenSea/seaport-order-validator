@@ -12,33 +12,41 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 5 | Offer amount must not be zero |
 | 6 | Consideration amount must not be zero |
 | 7 | Consideration recipient must not be null address |
-| 8 | Protocol fee missing |
-| 9 | Protocol fee item type incorrect |
-| 10 | Protocol fee token incorrect |
-| 11 | Protocol fee start amount too low |
-| 12 | Protocol fee end amount too low |
-| 13 | Protocol fee recipient incorrect |
-| 14 | ERC721 amount must be one |
-| 15 | ERC721 token is invalid |
-| 16 | ERC721 token with identifier does not exist |
-| 17 | ERC721 not owner of token |
-| 18 | ERC721 conduit not approved |
-| 19 | ERC1155 invalid token |
-| 20 | ERC1155 conduit not approved |
-| 21 | ERC1155 insufficient balance |
-| 22 | ERC20 identifier must be zero |
-| 23 | ERC20 invalid token |
-| 24 | ERC20 insufficient allowance to conduit |
-| 25 | ERC20 insufficient balance |
-| 26 | Native token address must be null address |
-| 27 | Native token identifier must be zero |
-| 28 | Native token insufficient balance |
-| 29 | Zone rejected order |
-| 30 | Conduit key invalid |
-| 31 | Invalid item type |
-| 32 | Merkle error |
-| 33 | Fees uncheckable due to order format. Unable to check required protocol fee. |
-| 34 | Invalid Signature |
+| 8 | Consideration contains extra items |
+| 9 | Private sale can not be to self |
+| 10 | Protocol fee missing |
+| 11 | Protocol fee item type incorrect |
+| 12 | Protocol fee token incorrect |
+| 13 | Protocol fee start amount too low |
+| 14 | Protocol fee end amount too low |
+| 15 | Protocol fee recipient incorrect |
+| 16 | ERC721 amount must be one |
+| 17 | ERC721 token is invalid |
+| 18 | ERC721 token with identifier does not exist |
+| 19 | ERC721 not owner of token |
+| 20 | ERC721 conduit not approved |
+| 21 | ERC1155 invalid token |
+| 22 | ERC1155 conduit not approved |
+| 23 | ERC1155 insufficient balance |
+| 24 | ERC20 identifier must be zero |
+| 25 | ERC20 invalid token |
+| 26 | ERC20 insufficient allowance to conduit |
+| 27 | ERC20 insufficient balance |
+| 28 | Native token address must be null address |
+| 29 | Native token identifier must be zero |
+| 30 | Native token insufficient balance |
+| 31 | Zone rejected order |
+| 32 | Conduit key invalid |
+| 33 | Invalid item type |
+| 34 | Merkle error |
+| 35 | Invalid order format. Ensure offer/consideration follow requirements |
+| 36 | Invalid signature |
+| 37 | Royalty fee missing |
+| 38 | Royalty fee item type incorrect |
+| 39 | Royalty fee token incorrect |
+| 40 | Royalty fee start amount too low |
+| 41 | Royalty fee end amount too low |
+| 42 | Royalty fee recipient incorrect |
 
 ## Warning Codes
 | Code | Warning |
@@ -47,13 +55,5 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 1 | Order not active |
 | 2 | Order duration less than 30 minutes |
 | 3 | More than one offer item |
-| 4 | Zero consideration items |
-| 5 | More than three consideration items |
-| 6 | Native offer item |
-| 7 | Royalty fee missing |
-| 8 | Royalty fee item type incorrect |
-| 9 | Royalty fee token incorrect |
-| 10 | Royalty fee start amount too low |
-| 11 | Royalty fee end amount too low |
-| 12 | Royalty fee recipient incorrect |
-| 13 | Fees uncheckable due to order format. Protocol fee not required. |
+| 4 | Native offer item |
+| 5 | Zero consideration items |

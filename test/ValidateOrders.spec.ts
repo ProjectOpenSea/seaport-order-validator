@@ -702,60 +702,6 @@ describe("Validate Orders", function () {
       ]);
     });
 
-    it("More than three consideration items", async function () {
-      baseOrderParameters.offer = [
-        {
-          itemType: ItemType.ERC721,
-          token: erc721_1.address,
-          identifierOrCriteria: "2",
-          startAmount: "1",
-          endAmount: "1",
-        },
-      ];
-
-      baseOrderParameters.consideration = [
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "1000",
-          endAmount: "1000",
-          recipient: owner.address,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "100",
-          endAmount: "100",
-          recipient: feeRecipient,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "100",
-          endAmount: "100",
-          recipient: feeRecipient,
-        },
-        {
-          itemType: ItemType.ERC20,
-          token: erc20_1.address,
-          identifierOrCriteria: "0",
-          startAmount: "100",
-          endAmount: "100",
-          recipient: feeRecipient,
-        },
-      ];
-
-      expect(
-        await validator.validateConsiderationItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Consideration_MoreThanThreeItems],
-      ]);
-    });
-
     it("Consideration amount zero", async function () {
       baseOrderParameters.consideration = [
         {

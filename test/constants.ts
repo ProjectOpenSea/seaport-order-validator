@@ -145,5 +145,4 @@ export enum ValidationWarning {
   Offer_MoreThanOneItem,
   Offer_NativeItem,
   Consideration_ZeroItems,
-  Consideration_MoreThanThreeItems,
 }

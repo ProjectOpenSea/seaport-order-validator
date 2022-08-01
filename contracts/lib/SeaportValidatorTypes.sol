@@ -59,6 +59,5 @@ enum ValidationWarning {
     Time_ShortOrder,
     Offer_MoreThanOneItem,
     Offer_NativeItem,
-    Consideration_ZeroItems,
-    Consideration_MoreThanThreeItems
+    Consideration_ZeroItems
 }
