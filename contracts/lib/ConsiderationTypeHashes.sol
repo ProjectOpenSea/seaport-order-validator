@@ -119,7 +119,7 @@ contract ConsiderationTypeHashes {
                 _EIP_712_DOMAIN_TYPEHASH,
                 _NAME_HASH,
                 _VERSION_HASH,
-                1,
+                block.chainid,
                 seaportAddress
             )
         );
