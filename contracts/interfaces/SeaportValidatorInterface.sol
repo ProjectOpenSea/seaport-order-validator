@@ -1,41 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import { ItemType } from "./ConsiderationEnums.sol";
-import {
-    Order,
-    OrderParameters,
-    BasicOrderParameters,
-    OfferItem,
-    ConsiderationItem
-} from "./ConsiderationStructs.sol";
-import { ConsiderationTypeHashes } from "./ConsiderationTypeHashes.sol";
-import {
-    ConsiderationInterface
-} from "../interfaces/ConsiderationInterface.sol";
-import {
-    ConduitControllerInterface
-} from "../interfaces/ConduitControllerInterface.sol";
-import { ZoneInterface } from "../interfaces/ZoneInterface.sol";
-import { IERC721 } from "@openzeppelin/contracts/interfaces/IERC721.sol";
-import { IERC1155 } from "@openzeppelin/contracts/interfaces/IERC1155.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import {
-    ErrorsAndWarnings,
-    ErrorsAndWarningsLib
-} from "./ErrorsAndWarnings.sol";
-import { SafeStaticCall } from "./SafeStaticCall.sol";
-import { Murky } from "./Murky.sol";
-import {
-    RoyaltyEngineInterface
-} from "../interfaces/RoyaltyEngineInterface.sol";
-import {
-    ValidationConfiguration,
-    ValidationError,
-    ValidationWarning
-} from "./SeaportValidatorTypes.sol";
-import { SignatureVerification } from "./SignatureVerification.sol";
+import { ItemType } from "../lib/ConsiderationEnums.sol";
+import { Order, OrderParameters } from "../lib/ConsiderationStructs.sol";
+import { ErrorsAndWarnings } from "../lib/ErrorsAndWarnings.sol";
+import { ValidationConfiguration } from "../lib/SeaportValidatorTypes.sol";
 
 /**
  * @title SeaportValidator
