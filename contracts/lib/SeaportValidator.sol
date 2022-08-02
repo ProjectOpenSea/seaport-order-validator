@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import { ItemType } from "./lib/ConsiderationEnums.sol";
+import { ItemType } from "./ConsiderationEnums.sol";
 import {
     Order,
     OrderParameters,
     BasicOrderParameters,
     OfferItem,
     ConsiderationItem
-} from "./lib/ConsiderationStructs.sol";
-import { ConsiderationTypeHashes } from "./lib/ConsiderationTypeHashes.sol";
+} from "./ConsiderationStructs.sol";
+import { ConsiderationTypeHashes } from "./ConsiderationTypeHashes.sol";
 import {
     ConsiderationInterface
-} from "./interfaces/ConsiderationInterface.sol";
+} from "../interfaces/ConsiderationInterface.sol";
 import {
     ConduitControllerInterface
-} from "./interfaces/ConduitControllerInterface.sol";
-import { ZoneInterface } from "./interfaces/ZoneInterface.sol";
+} from "../interfaces/ConduitControllerInterface.sol";
+import { ZoneInterface } from "../interfaces/ZoneInterface.sol";
 import { IERC721 } from "@openzeppelin/contracts/interfaces/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -24,18 +24,18 @@ import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import {
     ErrorsAndWarnings,
     ErrorsAndWarningsLib
-} from "./lib/ErrorsAndWarnings.sol";
-import { SafeStaticCall } from "./lib/SafeStaticCall.sol";
-import { Murky } from "./lib/Murky.sol";
+} from "./ErrorsAndWarnings.sol";
+import { SafeStaticCall } from "./SafeStaticCall.sol";
+import { Murky } from "./Murky.sol";
 import {
     RoyaltyEngineInterface
-} from "./interfaces/RoyaltyEngineInterface.sol";
+} from "../interfaces/RoyaltyEngineInterface.sol";
 import {
     ValidationConfiguration,
     ValidationError,
     ValidationWarning
-} from "./lib/SeaportValidatorTypes.sol";
-import { SignatureVerification } from "./lib/SignatureVerification.sol";
+} from "./SeaportValidatorTypes.sol";
+import { SignatureVerification } from "./SignatureVerification.sol";
 
 /**
  * @title SeaportValidator
@@ -59,8 +59,8 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         RoyaltyEngineInterface(0x0385603ab55642cb4Dd5De3aE9e306809991804f);
     Murky public immutable murky;
 
-    constructor() {
-        murky = new Murky(false);
+    constructor(Murky murky_) {
+        murky = murky_;
     }
 
     /**
@@ -123,10 +123,29 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
+        uint256 currentCounter = seaport.getCounter(order.parameters.offerer);
+
+        return validateSignatureWithCounter(order, currentCounter);
+    }
+
+    function validateSignatureWithCounter(Order memory order, uint256 counter)
+        public
+        view
+        returns (ErrorsAndWarnings memory errorsAndWarnings)
+    {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         uint256 currentCounter = seaport.getCounter(order.parameters.offerer);
-        bytes32 orderHash = _deriveOrderHash(order.parameters, currentCounter);
+        if (currentCounter > counter) {
+            errorsAndWarnings.addError(ValidationError.Signature_LowCounter);
+            return errorsAndWarnings;
+        } else if (counter > 2 && currentCounter < counter - 2) {
+            errorsAndWarnings.addWarning(
+                ValidationWarning.Signature_HighCounter
+            );
+        }
+
+        bytes32 orderHash = _deriveOrderHash(order.parameters, counter);
 
         (bool isValid, , , ) = seaport.getOrderStatus(orderHash);
 
@@ -142,7 +161,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 order.signature
             )
         ) {
-            errorsAndWarnings.addError(ValidationError.InvalidSignature);
+            errorsAndWarnings.addError(ValidationError.Signature_Invalid);
         }
     }
 
@@ -330,7 +349,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         (
             uint256 tertiaryConsiderationIndex,
             ErrorsAndWarnings memory errorsAndWarningsLocal
-        ) = validateSecondaryConsiderationItems(
+        ) = _validateSecondaryConsiderationItems(
                 orderParameters,
                 protocolFeeRecipient,
                 protocolFeeBips,
@@ -341,7 +360,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
 
         if (tertiaryConsiderationIndex != 0) {
             errorsAndWarnings.concat(
-                validateTertiaryConsiderationItems(
+                _validateTertiaryConsiderationItems(
                     orderParameters,
                     tertiaryConsiderationIndex
                 )
@@ -349,7 +368,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         }
     }
 
-    function validateSecondaryConsiderationItems(
+    function _validateSecondaryConsiderationItems(
         OrderParameters memory orderParameters,
         address protocolFeeRecipient,
         uint256 protocolFeeBips,
@@ -521,7 +540,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             (royaltyFeePresent ? 1 : 0);
     }
 
-    function validateTertiaryConsiderationItems(
+    function _validateTertiaryConsiderationItems(
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) internal pure returns (ErrorsAndWarnings memory errorsAndWarnings) {

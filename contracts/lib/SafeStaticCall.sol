@@ -11,8 +11,12 @@ library SafeStaticCall {
         if (!success) return false;
         if (res.length != 32) return false;
 
-        for (uint256 i = 0; i < 31; i++) {
-            if (res[i] != 0) return false;
+        if (
+            bytes32(res) &
+                0x0000000000000000000000000000000000000000000000000000000000000001 !=
+            bytes32(res)
+        ) {
+            return false;
         }
 
         return expectedReturn ? res[31] == 0x01 : res[31] == 0;

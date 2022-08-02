@@ -9,7 +9,6 @@ module.exports = {
     "lib/ConsiderationStructs.sol",
     "lib/ConsiderationEnums.sol",
     "lib/Murky.sol",
-    "lib/SignatureVerification.sol",
   ],
   configureYulOptimizer: true,
   solcOptimizerDetails: {

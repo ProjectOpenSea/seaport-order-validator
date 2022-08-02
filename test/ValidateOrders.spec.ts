@@ -22,11 +22,11 @@ import type {
   TestERC721,
   TestZone,
 } from "../typechain-types";
+import type { OrderComponentsStruct } from "../typechain-types/contracts/interfaces/ConsiderationInterface";
 import type {
   OrderParametersStruct,
   OrderStruct,
-} from "../typechain-types/contracts/SeaportValidator";
-import type { OrderComponentsStruct } from "../typechain-types/contracts/interfaces/ConsiderationInterface";
+} from "../typechain-types/contracts/lib/SeaportValidator";
 import type { TestERC20 } from "../typechain-types/contracts/test/TestERC20";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
@@ -54,11 +54,13 @@ describe("Validate Orders", function () {
     const [owner, ...otherAccounts] = await ethers.getSigners();
 
     const Validator = await ethers.getContractFactory("SeaportValidator");
+    const MurkyFactory = await ethers.getContractFactory("Murky");
     const TestERC721Factory = await ethers.getContractFactory("TestERC721");
     const TestERC1155Factory = await ethers.getContractFactory("TestERC1155");
     const TestERC20Factory = await ethers.getContractFactory("TestERC20");
 
-    const validator = await Validator.deploy();
+    const murky = await MurkyFactory.deploy(false);
+    const validator = await Validator.deploy(murky.address);
 
     const erc721_1 = await TestERC721Factory.deploy("NFT1", "NFT1");
     const erc721_2 = await TestERC721Factory.deploy("NFT2", "NFT2");
@@ -2318,7 +2320,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateSignature(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidSignature],
+        [ValidationError.Signature_Invalid],
         [],
       ]);
     });
@@ -2346,7 +2348,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateSignature(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidSignature],
+        [ValidationError.Signature_Invalid],
         [],
       ]);
     });
@@ -2368,6 +2370,50 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[], []]);
     });
 
+    it("712: counter too low", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, owner);
+
+      await seaport.incrementCounter();
+
+      expect(
+        await validator.validateSignatureWithCounter(order, 0)
+      ).to.include.deep.ordered.members([
+        [ValidationError.Signature_LowCounter],
+        [],
+      ]);
+    });
+
+    it("712: counter high counter", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, owner, 4);
+
+      expect(
+        await validator.validateSignatureWithCounter(order, 4)
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Signature_HighCounter],
+      ]);
+    });
+
     it("712: failure", async function () {
       baseOrderParameters.offer = [
         {
@@ -2384,7 +2430,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateSignature(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidSignature],
+        [ValidationError.Signature_Invalid],
         [],
       ]);
     });
@@ -2514,7 +2560,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.callStatic.isValidOrder(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidSignature],
+        [ValidationError.Signature_Invalid],
         [],
       ]);
     });
@@ -2546,7 +2592,7 @@ describe("Validate Orders", function () {
         [
           ValidationError.Offer_ZeroItems,
           ValidationError.InvalidOrderFormat,
-          ValidationError.InvalidSignature,
+          ValidationError.Signature_Invalid,
         ],
         [],
       ]);
@@ -2589,7 +2635,7 @@ describe("Validate Orders", function () {
         [
           ValidationError.Offer_AmountZero,
           ValidationError.ERC721_InvalidToken,
-          ValidationError.InvalidSignature,
+          ValidationError.Signature_Invalid,
         ],
         [],
       ]);
@@ -2598,7 +2644,8 @@ describe("Validate Orders", function () {
 
   async function signOrder(
     orderParameters: OrderParametersStruct,
-    signer: SignerWithAddress
+    signer: SignerWithAddress,
+    counter?: number
   ): Promise<OrderStruct> {
     const sig = await signer._signTypedData(
       {
@@ -2608,7 +2655,7 @@ describe("Validate Orders", function () {
         verifyingContract: seaport.address,
       },
       EIP_712_ORDER_TYPE,
-      await getOrderComponents(orderParameters, signer)
+      await getOrderComponents(orderParameters, signer, counter)
     );
 
     return {
@@ -2619,11 +2666,12 @@ describe("Validate Orders", function () {
 
   async function getOrderComponents(
     orderParameters: OrderParametersStruct,
-    signer: SignerWithAddress
+    signer: SignerWithAddress,
+    counter?: number
   ): Promise<OrderComponentsStruct> {
     return {
       ...orderParameters,
-      counter: await seaport.getCounter(signer.address),
+      counter: counter ?? (await seaport.getCounter(signer.address)),
     };
   }
 });

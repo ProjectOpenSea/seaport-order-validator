@@ -129,7 +129,8 @@ export enum ValidationError {
   InvalidItemType,
   MerkleError,
   InvalidOrderFormat,
-  InvalidSignature,
+  Signature_Invalid,
+  Signature_LowCounter,
   RoyaltyFee_Missing,
   RoyaltyFee_ItemType,
   RoyaltyFee_Token,
@@ -145,4 +146,5 @@ export enum ValidationWarning {
   Offer_MoreThanOneItem,
   Offer_NativeItem,
   Consideration_ZeroItems,
+  Signature_HighCounter,
 }

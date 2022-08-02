@@ -44,7 +44,8 @@ enum ValidationError {
     InvalidItemType,
     MerkleError,
     InvalidOrderFormat,
-    InvalidSignature,
+    Signature_Invalid,
+    Signature_LowCounter,
     RoyaltyFee_Missing,
     RoyaltyFee_ItemType,
     RoyaltyFee_Token,
@@ -59,5 +60,6 @@ enum ValidationWarning {
     Time_ShortOrder,
     Offer_MoreThanOneItem,
     Offer_NativeItem,
-    Consideration_ZeroItems
+    Consideration_ZeroItems,
+    Signature_HighCounter
 }

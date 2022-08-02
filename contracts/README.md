@@ -40,13 +40,14 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 33 | Invalid item type |
 | 34 | Merkle error |
 | 35 | Invalid order format. Ensure offer/consideration follow requirements |
-| 36 | Invalid signature |
-| 37 | Royalty fee missing |
-| 38 | Royalty fee item type incorrect |
-| 39 | Royalty fee token incorrect |
-| 40 | Royalty fee start amount too low |
-| 41 | Royalty fee end amount too low |
-| 42 | Royalty fee recipient incorrect |
+| 36 | Signature invalid |
+| 37 | Signature counter below current counter |
+| 38 | Royalty fee missing |
+| 39 | Royalty fee item type incorrect |
+| 40 | Royalty fee token incorrect |
+| 41 | Royalty fee start amount too low |
+| 42 | Royalty fee end amount too low |
+| 43 | Royalty fee recipient incorrect |
 
 ## Warning Codes
 | Code | Warning |
@@ -57,3 +58,4 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 3 | More than one offer item |
 | 4 | Native offer item |
 | 5 | Zero consideration items |
+| 6 | Signature counter more than two greater than current counter |
