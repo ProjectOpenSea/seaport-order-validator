@@ -260,7 +260,9 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     }
 
     /**
-     * @notice Validate all offer items for an order
+     * @notice Validate all offer items for an order. Ensures that
+     *    offerer has sufficient balance and approval for each item.
+     * @dev Amounts are not summed and verified, just the individual amounts.
      * @param orderParameters The parameters for the order to validate
      * @return errorsAndWarnings  The errors and warnings
      */
@@ -1012,7 +1014,6 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         }
     }
 
-    // TODO: Need to add support for order with extra data
     /**
      * @notice Validates the zone call for an order
      * @param orderParameters The parameters for the order to validate

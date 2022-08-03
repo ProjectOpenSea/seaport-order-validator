@@ -59,3 +59,4 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 4 | Native offer item |
 | 5 | Zero consideration items |
 | 6 | Signature counter more than two greater than current counter |
+| 7 | Signature may be invalid since `totalOriginalConsiderationItems` is not set correctly |
