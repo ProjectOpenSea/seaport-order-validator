@@ -36,16 +36,11 @@ import {
     ValidationWarning
 } from "./SeaportValidatorTypes.sol";
 import { SignatureVerification } from "./SignatureVerification.sol";
+import "hardhat/console.sol";
 
 /**
  * @title SeaportValidator
- * @notice SeaportValidator validates simple orders that adhere to a set of rules defined below:
- *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
- *    - The first consideration is the primary consideration.
- *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is royalty fee.
- *    - In private orders, the last consideration specifies a recipient for the offer item.
- *    - Offer items must be owned and properly approved by the offerer.
- *    - Consideration items must exist.
+ * @notice SeaportValidator provides advanced validation to seaport orders.
  */
 contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
@@ -65,6 +60,15 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
 
     /**
      * @notice Conduct a comprehensive validation of the given order.
+     *    `isValidOrder` validates simple orders that adhere to a set of rules defined below:
+     *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
+     *    - The first consideration is the primary consideration.
+     *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is royalty fee.
+     *    - In private orders, the last consideration specifies a recipient for the offer item.
+     *    - Offer items must be owned and properly approved by the offerer.
+     *    - There must be one offer item
+     *    - Consideration items must exist.
+     *    - The signature must be valid, or the order must be already validated on chain
      * @param order The order to validate.
      * @return errorsAndWarnings The errors and warnings found in the order.
      */
@@ -76,12 +80,14 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         return
             isValidOrderWithConfiguration(
                 order,
-                ValidationConfiguration(address(0), 0, false)
+                ValidationConfiguration(address(0), 0, false, false)
             );
     }
 
     /**
      * @notice Same as `isValidOrder` but allows for more configuration related to fee validation.
+     *    If `skipStrictValidation` is set order logic validation is not carried out: fees are not
+     *       checked and there may be more than one offer item as well as any number of consideration items.
      */
     function isValidOrderWithConfiguration(
         Order memory order,
@@ -94,14 +100,17 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         errorsAndWarnings.concat(validateConsiderationItems(order.parameters));
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(isValidZone(order.parameters));
-        errorsAndWarnings.concat(
-            validateStrictLogic(
-                order.parameters,
-                validationConfiguration.protocolFeeRecipient,
-                validationConfiguration.protocolFeeBips,
-                validationConfiguration.checkRoyaltyFee
-            )
-        );
+        if (!validationConfiguration.skipStrictValidation) {
+            errorsAndWarnings.concat(
+                validateStrictLogic(
+                    order.parameters,
+                    validationConfiguration.protocolFeeRecipient,
+                    validationConfiguration.protocolFeeBips,
+                    validationConfiguration.checkRoyaltyFee
+                )
+            );
+        }
+
         errorsAndWarnings.concat(validateSignature(order));
     }
 
@@ -161,6 +170,15 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 order.signature
             )
         ) {
+            if (
+                order.parameters.consideration.length !=
+                order.parameters.totalOriginalConsiderationItems
+            ) {
+                errorsAndWarnings.addWarning(
+                    ValidationWarning.Signature_OriginalConsiderationItems
+                );
+            }
+
             errorsAndWarnings.addError(ValidationError.Signature_Invalid);
         }
     }
@@ -421,45 +439,57 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
         }
 
-        if (protocolFeeRecipient != address(0)) {
-            if (orderParameters.consideration.length < 2) {
-                errorsAndWarnings.addError(ValidationError.ProtocolFee_Missing);
-                return (0, errorsAndWarnings);
-            }
+        bool protocolFeePresent = false;
+        {
+            uint256 protocolFeeStartAmount = (transactionAmountStart *
+                protocolFeeBips) / 10000;
+            uint256 protocolFeeEndAmount = (transactionAmountEnd *
+                protocolFeeBips) / 10000;
 
-            ConsiderationItem memory protocolFeeItem = orderParameters
-                .consideration[1];
-
-            if (protocolFeeItem.itemType != royaltyFeeConsideration.itemType) {
-                errorsAndWarnings.addError(
-                    ValidationError.ProtocolFee_ItemType
-                );
-                return (0, errorsAndWarnings);
-            }
-
-            if (protocolFeeItem.token != royaltyFeeConsideration.token) {
-                errorsAndWarnings.addError(ValidationError.ProtocolFee_Token);
-            }
             if (
-                protocolFeeItem.startAmount <
-                (transactionAmountStart * protocolFeeBips) / 10000
+                protocolFeeRecipient != address(0) &&
+                (protocolFeeStartAmount > 0 || protocolFeeEndAmount > 0)
             ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ProtocolFee_StartAmount
-                );
-            }
-            if (
-                protocolFeeItem.endAmount <
-                (transactionAmountEnd * protocolFeeBips) / 10000
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ProtocolFee_EndAmount
-                );
-            }
-            if (protocolFeeItem.recipient != protocolFeeRecipient) {
-                errorsAndWarnings.addError(
-                    ValidationError.ProtocolFee_Recipient
-                );
+                if (orderParameters.consideration.length < 2) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_Missing
+                    );
+                    return (0, errorsAndWarnings);
+                }
+                protocolFeePresent = true;
+
+                ConsiderationItem memory protocolFeeItem = orderParameters
+                    .consideration[1];
+
+                if (
+                    protocolFeeItem.itemType != royaltyFeeConsideration.itemType
+                ) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_ItemType
+                    );
+                    return (0, errorsAndWarnings);
+                }
+
+                if (protocolFeeItem.token != royaltyFeeConsideration.token) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_Token
+                    );
+                }
+                if (protocolFeeItem.startAmount < protocolFeeStartAmount) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_StartAmount
+                    );
+                }
+                if (protocolFeeItem.endAmount < protocolFeeEndAmount) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_EndAmount
+                    );
+                }
+                if (protocolFeeItem.recipient != protocolFeeRecipient) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ProtocolFee_Recipient
+                    );
+                }
             }
         }
 
@@ -490,9 +520,12 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         bool royaltyFeePresent = false;
 
         if (
-            royaltyFeeConsideration.recipient != address(0) && checkRoyaltyFee
+            royaltyFeeConsideration.recipient != address(0) &&
+            checkRoyaltyFee &&
+            (royaltyFeeConsideration.startAmount > 0 ||
+                royaltyFeeConsideration.endAmount > 0)
         ) {
-            uint16 royaltyConsiderationIndex = protocolFeeBips != 0 ? 2 : 1; // 2 if protocol fee, ow 1
+            uint16 royaltyConsiderationIndex = protocolFeePresent ? 2 : 1; // 2 if protocol fee, ow 1
 
             // Check that royalty consideration item exists
             if (
@@ -536,7 +569,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         // Check additional consideration items
         tertiaryConsiderationIndex =
             1 +
-            (protocolFeeBips != 0 ? 1 : 0) +
+            (protocolFeePresent ? 1 : 0) +
             (royaltyFeePresent ? 1 : 0);
     }
 

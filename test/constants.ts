@@ -147,4 +147,5 @@ export enum ValidationWarning {
   Offer_NativeItem,
   Consideration_ZeroItems,
   Signature_HighCounter,
+  Signature_OriginalConsiderationItems,
 }

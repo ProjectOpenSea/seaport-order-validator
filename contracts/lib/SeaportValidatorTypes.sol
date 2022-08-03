@@ -5,6 +5,7 @@ struct ValidationConfiguration {
     address protocolFeeRecipient;
     uint256 protocolFeeBips;
     bool checkRoyaltyFee;
+    bool skipStrictValidation;
 }
 
 enum ValidationError {
@@ -61,5 +62,6 @@ enum ValidationWarning {
     Offer_MoreThanOneItem,
     Offer_NativeItem,
     Consideration_ZeroItems,
-    Signature_HighCounter
+    Signature_HighCounter,
+    Signature_OriginalConsiderationItems
 }

@@ -26,6 +26,7 @@ import type { OrderComponentsStruct } from "../typechain-types/contracts/interfa
 import type {
   OrderParametersStruct,
   OrderStruct,
+  ValidationConfigurationStruct,
 } from "../typechain-types/contracts/lib/SeaportValidator";
 import type { TestERC20 } from "../typechain-types/contracts/test/TestERC20";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -2370,6 +2371,36 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[], []]);
     });
 
+    it("712: incorrect consideration items", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+
+      const order = await signOrder(baseOrderParameters, owner);
+      expect(
+        await validator.validateSignature(order)
+      ).to.include.deep.ordered.members([
+        [ValidationError.Signature_Invalid],
+        [ValidationWarning.Signature_OriginalConsiderationItems],
+      ]);
+    });
+
     it("712: counter too low", async function () {
       baseOrderParameters.offer = [
         {
@@ -2527,6 +2558,180 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[], []]);
     });
 
+    it("Full scope: all fees", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(OPENSEA_CONDUIT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        },
+      ];
+      baseOrderParameters.conduitKey = OPENSEA_CONDUIT_KEY;
+      baseOrderParameters.totalOriginalConsiderationItems = 3;
+
+      const order = await signOrder(baseOrderParameters, owner);
+
+      const validationConfiguration: ValidationConfigurationStruct = {
+        protocolFeeRecipient: feeRecipient,
+        protocolFeeBips: 250,
+        checkRoyaltyFee: true,
+        skipStrictValidation: false,
+      };
+
+      expect(
+        await validator.isValidOrderWithConfiguration(
+          order,
+          validationConfiguration
+        )
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
+    it("Full scope: skip strict validation", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc721_1.mint(owner.address, 2);
+      await erc721_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 2);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "2",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: feeRecipient,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "25",
+          recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+        },
+      ];
+      baseOrderParameters.totalOriginalConsiderationItems = 3;
+
+      const order = await signOrder(baseOrderParameters, owner);
+
+      const validationConfiguration: ValidationConfigurationStruct = {
+        protocolFeeRecipient: NULL_ADDRESS,
+        protocolFeeBips: 0,
+        checkRoyaltyFee: false,
+        skipStrictValidation: true,
+      };
+
+      expect(
+        await validator.isValidOrderWithConfiguration(
+          order,
+          validationConfiguration
+        )
+      ).to.include.deep.ordered.members([
+        [],
+        [ValidationWarning.Offer_MoreThanOneItem],
+      ]);
+    });
+
+    it("No protocol fee when 0", async function () {
+      await erc721_1.mint(otherAccounts[0].address, 1);
+      await erc20_1.mint(owner.address, 1000);
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "39",
+          endAmount: "39",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+      ];
+      baseOrderParameters.totalOriginalConsiderationItems = 1;
+
+      const order: OrderStruct = await signOrder(baseOrderParameters, owner);
+
+      const validationConfiguration: ValidationConfigurationStruct = {
+        protocolFeeRecipient: feeRecipient,
+        protocolFeeBips: 250,
+        checkRoyaltyFee: true,
+        skipStrictValidation: false,
+      };
+
+      expect(
+        await validator.callStatic.isValidOrderWithConfiguration(
+          order,
+          validationConfiguration
+        )
+      ).to.include.deep.ordered.members([[], []]);
+    });
+
     it("no sig", async function () {
       await erc721_1.mint(otherAccounts[0].address, 1);
       await erc20_1.mint(owner.address, 1000);
@@ -2551,6 +2756,7 @@ describe("Validate Orders", function () {
           recipient: owner.address,
         },
       ];
+      baseOrderParameters.totalOriginalConsiderationItems = 1;
 
       const order: OrderStruct = {
         parameters: baseOrderParameters,
@@ -2580,6 +2786,7 @@ describe("Validate Orders", function () {
           recipient: owner.address,
         },
       ];
+      baseOrderParameters.totalOriginalConsiderationItems = 1;
 
       const order: OrderStruct = {
         parameters: baseOrderParameters,
@@ -2623,6 +2830,7 @@ describe("Validate Orders", function () {
           recipient: owner.address,
         },
       ];
+      baseOrderParameters.totalOriginalConsiderationItems = 1;
 
       const order: OrderStruct = {
         parameters: baseOrderParameters,
