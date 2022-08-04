@@ -413,6 +413,28 @@ describe("Validate Orders", function () {
           [],
         ]);
       });
+
+      it("ERC721 Criteria offer", async function () {
+        await erc721_1.mint(owner.address, 2);
+        await erc721_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 2);
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ValidationError.InvalidItemType],
+          [],
+        ]);
+      });
     });
 
     describe("ERC1155", function () {
@@ -2521,7 +2543,7 @@ describe("Validate Orders", function () {
       await seaport.validate([order]);
 
       expect(
-        await validator.callStatic.isValidOrder(order)
+        await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([[], []]);
     });
 
@@ -2554,7 +2576,7 @@ describe("Validate Orders", function () {
       const order: OrderStruct = await signOrder(baseOrderParameters, owner);
 
       expect(
-        await validator.callStatic.isValidOrder(order)
+        await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([[], []]);
     });
 
@@ -2612,8 +2634,8 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.isValidOrderWithConfiguration(
-          order,
-          validationConfiguration
+          validationConfiguration,
+          order
         )
       ).to.include.deep.ordered.members([[], []]);
     });
@@ -2680,8 +2702,8 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.isValidOrderWithConfiguration(
-          order,
-          validationConfiguration
+          validationConfiguration,
+          order
         )
       ).to.include.deep.ordered.members([
         [],
@@ -2725,9 +2747,9 @@ describe("Validate Orders", function () {
       };
 
       expect(
-        await validator.callStatic.isValidOrderWithConfiguration(
-          order,
-          validationConfiguration
+        await validator.isValidOrderWithConfiguration(
+          validationConfiguration,
+          order
         )
       ).to.include.deep.ordered.members([[], []]);
     });
@@ -2764,7 +2786,7 @@ describe("Validate Orders", function () {
       };
 
       expect(
-        await validator.callStatic.isValidOrder(order)
+        await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([
         [ValidationError.Signature_Invalid],
         [],
@@ -2794,7 +2816,7 @@ describe("Validate Orders", function () {
       };
 
       expect(
-        await validator.callStatic.isValidOrder(order)
+        await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([
         [
           ValidationError.Offer_ZeroItems,
@@ -2838,7 +2860,7 @@ describe("Validate Orders", function () {
       };
 
       expect(
-        await validator.callStatic.isValidOrder(order)
+        await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([
         [
           ValidationError.Offer_AmountZero,

@@ -36,7 +36,6 @@ import {
     ValidationWarning
 } from "./SeaportValidatorTypes.sol";
 import { SignatureVerification } from "./SignatureVerification.sol";
-import "hardhat/console.sol";
 
 /**
  * @title SeaportValidator
@@ -79,8 +78,8 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     {
         return
             isValidOrderWithConfiguration(
-                order,
-                ValidationConfiguration(address(0), 0, false, false)
+                ValidationConfiguration(address(0), 0, false, false),
+                order
             );
     }
 
@@ -90,15 +89,15 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
      *       checked and there may be more than one offer item as well as any number of consideration items.
      */
     function isValidOrderWithConfiguration(
-        Order memory order,
-        ValidationConfiguration memory validationConfiguration
+        ValidationConfiguration memory validationConfiguration,
+        Order memory order
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
 
         errorsAndWarnings.concat(validateTime(order.parameters));
+        errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(validateOfferItems(order.parameters));
         errorsAndWarnings.concat(validateConsiderationItems(order.parameters));
-        errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(isValidZone(order.parameters));
         if (!validationConfiguration.skipStrictValidation) {
             errorsAndWarnings.concat(
@@ -125,6 +124,28 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
         (, errorsAndWarnings) = getApprovalAddress(conduitKey);
+    }
+
+    /**
+     * @notice Gets the approval address for the given conduit key
+     * @param conduitKey Conduit key to get approval address for
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
+    function getApprovalAddress(bytes32 conduitKey)
+        public
+        view
+        returns (address, ErrorsAndWarnings memory errorsAndWarnings)
+    {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        if (conduitKey == 0) return (address(seaport), errorsAndWarnings);
+        (address conduitAddress, bool exists) = conduitController.getConduit(
+            conduitKey
+        );
+        if (!exists) {
+            errorsAndWarnings.addError(ValidationError.Conduit_KeyInvalid);
+            conduitAddress = address(0); // Don't return invalid conduit
+        }
+        return (conduitAddress, errorsAndWarnings);
     }
 
     function validateSignature(Order memory order)
@@ -290,6 +311,249 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     }
 
     /**
+     * @notice Validates an offer item
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
+    function validateOfferItem(
+        OrderParameters memory orderParameters,
+        uint256 offerItemIndex
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = validateOfferItemParameters(
+            orderParameters,
+            offerItemIndex
+        );
+        if (errorsAndWarnings.hasErrors()) {
+            // Only validate approvals and balances if parameters are valid
+            return errorsAndWarnings;
+        }
+
+        errorsAndWarnings.concat(
+            validateOfferItemApprovalAndBalance(orderParameters, offerItemIndex)
+        );
+    }
+
+    /**
+     * @notice Validates the OfferItem parameters. This includes token contract validation
+     * @dev OfferItems with criteria are currently not allowed
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
+    function validateOfferItemParameters(
+        OrderParameters memory orderParameters,
+        uint256 offerItemIndex
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
+
+        if (offerItem.startAmount == 0 && offerItem.endAmount == 0) {
+            errorsAndWarnings.addError(ValidationError.Offer_AmountZero);
+        }
+
+        if (offerItem.itemType == ItemType.ERC721) {
+            if (offerItem.startAmount != 1 || offerItem.endAmount != 1) {
+                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
+            }
+
+            if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+            }
+        } else if (offerItem.itemType == ItemType.ERC1155) {
+            if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC1155_InvalidToken
+                );
+            }
+        } else if (offerItem.itemType == ItemType.ERC20) {
+            if (offerItem.identifierOrCriteria != 0) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC20_IdentifierNonZero
+                );
+            }
+
+            // validate contract
+            (, bytes memory res) = offerItem.token.staticcall(
+                abi.encodeWithSelector(
+                    IERC20.allowance.selector,
+                    address(seaport),
+                    address(seaport)
+                )
+            );
+            if (res.length == 0) {
+                // Not an ERC20 token
+                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
+            }
+        } else if (offerItem.itemType == ItemType.NATIVE) {
+            if (offerItem.token != address(0)) {
+                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
+            }
+
+            if (offerItem.identifierOrCriteria != 0) {
+                errorsAndWarnings.addError(
+                    ValidationError.Native_IdentifierNonZero
+                );
+            }
+        } else {
+            errorsAndWarnings.addError(ValidationError.InvalidItemType);
+        }
+    }
+
+    /**
+     * @notice Validates the OfferItem approvals and balances
+     * @param orderParameters The parameters for the order to validate
+     * @param offerItemIndex The index of the offerItem in offer array to validate
+     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
+     */
+    function validateOfferItemApprovalAndBalance(
+        OrderParameters memory orderParameters,
+        uint256 offerItemIndex
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        // Note: If multiple items are of the same token, token amounts are not summed for validation
+
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        (
+            address approvalAddress,
+            ErrorsAndWarnings memory ew
+        ) = getApprovalAddress(orderParameters.conduitKey);
+
+        errorsAndWarnings.concat(ew);
+
+        OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
+
+        if (offerItem.itemType == ItemType.ERC721) {
+            // TODO: Deal with ERC721 with criteria
+            IERC721 token = IERC721(offerItem.token);
+
+            // Check owner
+            if (
+                !address(token).safeStaticCallAddress(
+                    abi.encodeWithSelector(
+                        IERC721.ownerOf.selector,
+                        offerItem.identifierOrCriteria
+                    ),
+                    orderParameters.offerer
+                )
+            ) {
+                errorsAndWarnings.addError(ValidationError.ERC721_NotOwner);
+            }
+
+            // Check approval
+            if (
+                !address(token).safeStaticCallAddress(
+                    abi.encodeWithSelector(
+                        IERC721.getApproved.selector,
+                        offerItem.identifierOrCriteria
+                    ),
+                    approvalAddress
+                )
+            ) {
+                if (
+                    !address(token).safeStaticCallBool(
+                        abi.encodeWithSelector(
+                            IERC721.isApprovedForAll.selector,
+                            orderParameters.offerer,
+                            approvalAddress
+                        ),
+                        true
+                    )
+                ) {
+                    errorsAndWarnings.addError(
+                        ValidationError.ERC721_NotApproved
+                    );
+                }
+            }
+        } else if (offerItem.itemType == ItemType.ERC1155) {
+            IERC1155 token = IERC1155(offerItem.token);
+
+            if (
+                !address(token).safeStaticCallBool(
+                    abi.encodeWithSelector(
+                        IERC721.isApprovedForAll.selector,
+                        orderParameters.offerer,
+                        approvalAddress
+                    ),
+                    true
+                )
+            ) {
+                errorsAndWarnings.addError(ValidationError.ERC1155_NotApproved);
+            }
+
+            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
+
+            if (
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC1155.balanceOf.selector,
+                        orderParameters.offerer,
+                        offerItem.identifierOrCriteria
+                    ),
+                    minBalance
+                )
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC1155_InsufficientBalance
+                );
+            }
+        } else if (offerItem.itemType == ItemType.ERC20) {
+            IERC20 token = IERC20(offerItem.token);
+
+            uint256 minBalanceAndAllowance = offerItem.startAmount <
+                offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
+
+            if (
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC20.allowance.selector,
+                        orderParameters.offerer,
+                        approvalAddress
+                    ),
+                    minBalanceAndAllowance
+                )
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC20_InsufficientAllowance
+                );
+            }
+
+            if (
+                !address(token).safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC20.balanceOf.selector,
+                        orderParameters.offerer
+                    ),
+                    minBalanceAndAllowance
+                )
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC20_InsufficientBalance
+                );
+            }
+        } else if (offerItem.itemType == ItemType.NATIVE) {
+            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
+                ? offerItem.startAmount
+                : offerItem.endAmount;
+
+            if (orderParameters.offerer.balance < minBalance) {
+                errorsAndWarnings.addError(
+                    ValidationError.Native_InsufficientBalance
+                );
+            }
+
+            errorsAndWarnings.addWarning(ValidationWarning.Offer_NativeItem);
+        } else {
+            errorsAndWarnings.addError(ValidationError.InvalidItemType);
+        }
+    }
+
+    /**
      * @notice Validate all consideration items for an order
      * @param orderParameters The parameters for the order to validate
      * @return errorsAndWarnings  The errors and warnings
@@ -312,6 +576,147 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             errorsAndWarnings.concat(
                 validateConsiderationItem(orderParameters, i)
             );
+        }
+    }
+
+    /**
+     * @notice Validate a consideration item
+     * @param orderParameters The parameters for the order to validate
+     * @param considerationItemIndex The index of the consideration item to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
+    function validateConsiderationItem(
+        OrderParameters memory orderParameters,
+        uint256 considerationItemIndex
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        errorsAndWarnings.concat(
+            validateConsiderationItemParameters(
+                orderParameters,
+                considerationItemIndex
+            )
+        );
+    }
+
+    /**
+     * @notice Validates the parameters of a consideration item including contract validation
+     * @param orderParameters The parameters for the order to validate
+     * @param considerationItemIndex The index of the consideration item to validate
+     * @return errorsAndWarnings  The errors and warnings
+     */
+    function validateConsiderationItemParameters(
+        OrderParameters memory orderParameters,
+        uint256 considerationItemIndex
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
+        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+
+        ConsiderationItem memory considerationItem = orderParameters
+            .consideration[considerationItemIndex];
+
+        if (
+            considerationItem.startAmount == 0 &&
+            considerationItem.endAmount == 0
+        ) {
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_AmountZero
+            );
+        }
+
+        if (considerationItem.recipient == address(0)) {
+            errorsAndWarnings.addError(
+                ValidationError.Consideration_NullRecipient
+            );
+        }
+
+        if (considerationItem.itemType == ItemType.ERC721) {
+            if (
+                considerationItem.startAmount != 1 ||
+                considerationItem.endAmount != 1
+            ) {
+                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
+            }
+
+            if (
+                !checkInterface(
+                    considerationItem.token,
+                    type(IERC721).interfaceId
+                )
+            ) {
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+                return errorsAndWarnings;
+            }
+
+            // Ensure that token exists. Will return false if owned by null address.
+            if (
+                !considerationItem.token.safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC721.ownerOf.selector,
+                        considerationItem.identifierOrCriteria
+                    ),
+                    1
+                )
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC721_IdentifierDNE
+                );
+            }
+        } else if (
+            considerationItem.itemType == ItemType.ERC721_WITH_CRITERIA
+        ) {
+            if (
+                !checkInterface(
+                    considerationItem.token,
+                    type(IERC721).interfaceId
+                )
+            ) {
+                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+            }
+        } else if (
+            considerationItem.itemType == ItemType.ERC1155 ||
+            considerationItem.itemType == ItemType.ERC1155_WITH_CRITERIA
+        ) {
+            if (
+                !checkInterface(
+                    considerationItem.token,
+                    type(IERC1155).interfaceId
+                )
+            ) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC1155_InvalidToken
+                );
+            }
+        } else if (considerationItem.itemType == ItemType.ERC20) {
+            if (considerationItem.identifierOrCriteria != 0) {
+                errorsAndWarnings.addError(
+                    ValidationError.ERC20_IdentifierNonZero
+                );
+            }
+
+            if (
+                !considerationItem.token.safeStaticCallUint256(
+                    abi.encodeWithSelector(
+                        IERC20.allowance.selector,
+                        address(seaport),
+                        address(seaport)
+                    ),
+                    0
+                )
+            ) {
+                // Not an ERC20 token
+                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
+            }
+        } else if (considerationItem.itemType == ItemType.NATIVE) {
+            if (considerationItem.token != address(0)) {
+                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
+            }
+            if (considerationItem.identifierOrCriteria != 0) {
+                errorsAndWarnings.addError(
+                    ValidationError.Native_IdentifierNonZero
+                );
+            }
+        } else {
+            errorsAndWarnings.addError(ValidationError.InvalidItemType);
         }
     }
 
@@ -631,390 +1036,6 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     }
 
     /**
-     * @notice Validate a consideration item
-     * @param orderParameters The parameters for the order to validate
-     * @param considerationItemIndex The index of the consideration item to validate
-     * @return errorsAndWarnings  The errors and warnings
-     */
-    function validateConsiderationItem(
-        OrderParameters memory orderParameters,
-        uint256 considerationItemIndex
-    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        errorsAndWarnings.concat(
-            validateConsiderationItemParameters(
-                orderParameters,
-                considerationItemIndex
-            )
-        );
-    }
-
-    /**
-     * @notice Validates the parameters of a consideration item including contract validation
-     * @param orderParameters The parameters for the order to validate
-     * @param considerationItemIndex The index of the consideration item to validate
-     * @return errorsAndWarnings  The errors and warnings
-     */
-    function validateConsiderationItemParameters(
-        OrderParameters memory orderParameters,
-        uint256 considerationItemIndex
-    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        ConsiderationItem memory considerationItem = orderParameters
-            .consideration[considerationItemIndex];
-
-        if (
-            considerationItem.startAmount == 0 &&
-            considerationItem.endAmount == 0
-        ) {
-            errorsAndWarnings.addError(
-                ValidationError.Consideration_AmountZero
-            );
-        }
-
-        if (considerationItem.recipient == address(0)) {
-            errorsAndWarnings.addError(
-                ValidationError.Consideration_NullRecipient
-            );
-        }
-
-        if (considerationItem.itemType == ItemType.ERC721) {
-            if (
-                considerationItem.startAmount != 1 ||
-                considerationItem.endAmount != 1
-            ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
-            }
-
-            if (
-                !checkInterface(
-                    considerationItem.token,
-                    type(IERC721).interfaceId
-                )
-            ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
-                return errorsAndWarnings;
-            }
-
-            // Ensure that token exists. Will return false if owned by null address.
-            if (
-                !considerationItem.token.safeStaticCallUint256(
-                    abi.encodeWithSelector(
-                        IERC721.ownerOf.selector,
-                        considerationItem.identifierOrCriteria
-                    ),
-                    1
-                )
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC721_IdentifierDNE
-                );
-            }
-        } else if (
-            considerationItem.itemType == ItemType.ERC721_WITH_CRITERIA
-        ) {
-            if (
-                !checkInterface(
-                    considerationItem.token,
-                    type(IERC721).interfaceId
-                )
-            ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
-            }
-        } else if (
-            considerationItem.itemType == ItemType.ERC1155 ||
-            considerationItem.itemType == ItemType.ERC1155_WITH_CRITERIA
-        ) {
-            if (
-                !checkInterface(
-                    considerationItem.token,
-                    type(IERC1155).interfaceId
-                )
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InvalidToken
-                );
-            }
-        } else if (considerationItem.itemType == ItemType.ERC20) {
-            if (considerationItem.identifierOrCriteria != 0) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC20_IdentifierNonZero
-                );
-            }
-
-            if (
-                !considerationItem.token.safeStaticCallUint256(
-                    abi.encodeWithSelector(
-                        IERC20.allowance.selector,
-                        address(seaport),
-                        address(seaport)
-                    ),
-                    0
-                )
-            ) {
-                // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
-            }
-        } else if (considerationItem.itemType == ItemType.NATIVE) {
-            if (considerationItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
-            }
-            if (considerationItem.identifierOrCriteria != 0) {
-                errorsAndWarnings.addError(
-                    ValidationError.Native_IdentifierNonZero
-                );
-            }
-        } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
-        }
-    }
-
-    /**
-     * @notice Validates an offer item
-     * @param orderParameters The parameters for the order to validate
-     * @param offerItemIndex The index of the offerItem in offer array to validate
-     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
-     */
-    function validateOfferItem(
-        OrderParameters memory orderParameters,
-        uint256 offerItemIndex
-    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = validateOfferItemParameters(
-            orderParameters,
-            offerItemIndex
-        );
-        if (errorsAndWarnings.hasErrors()) {
-            // Only validate approvals and balances if parameters are valid
-            return errorsAndWarnings;
-        }
-
-        errorsAndWarnings.concat(
-            validateOfferItemApprovalAndBalance(orderParameters, offerItemIndex)
-        );
-    }
-
-    /**
-     * @notice Validates the OfferItem parameters. This includes token contract validation
-     * @dev OfferItems with criteria are currently not allowed
-     * @param orderParameters The parameters for the order to validate
-     * @param offerItemIndex The index of the offerItem in offer array to validate
-     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
-     */
-    function validateOfferItemParameters(
-        OrderParameters memory orderParameters,
-        uint256 offerItemIndex
-    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
-
-        if (offerItem.startAmount == 0 && offerItem.endAmount == 0) {
-            errorsAndWarnings.addError(ValidationError.Offer_AmountZero);
-        }
-
-        if (offerItem.itemType == ItemType.ERC721) {
-            if (offerItem.startAmount != 1 || offerItem.endAmount != 1) {
-                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
-            }
-
-            if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
-            }
-        } else if (offerItem.itemType == ItemType.ERC1155) {
-            if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InvalidToken
-                );
-            }
-        } else if (offerItem.itemType == ItemType.ERC20) {
-            if (offerItem.identifierOrCriteria != 0) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC20_IdentifierNonZero
-                );
-            }
-
-            // validate contract
-            (, bytes memory res) = offerItem.token.staticcall(
-                abi.encodeWithSelector(
-                    IERC20.allowance.selector,
-                    address(seaport),
-                    address(seaport)
-                )
-            );
-            if (res.length == 0) {
-                // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
-            }
-        } else if (offerItem.itemType == ItemType.NATIVE) {
-            if (offerItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
-            }
-
-            if (offerItem.identifierOrCriteria != 0) {
-                errorsAndWarnings.addError(
-                    ValidationError.Native_IdentifierNonZero
-                );
-            }
-        } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
-        }
-    }
-
-    /**
-     * @notice Validates the OfferItem approvals and balances
-     * @param orderParameters The parameters for the order to validate
-     * @param offerItemIndex The index of the offerItem in offer array to validate
-     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
-     */
-    function validateOfferItemApprovalAndBalance(
-        OrderParameters memory orderParameters,
-        uint256 offerItemIndex
-    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        // Note: If multiple items are of the same token, token amounts are not summed for validation
-
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-
-        (
-            address approvalAddress,
-            ErrorsAndWarnings memory ew
-        ) = getApprovalAddress(orderParameters.conduitKey);
-
-        errorsAndWarnings.concat(ew);
-
-        OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
-
-        if (offerItem.itemType == ItemType.ERC721) {
-            // TODO: Deal with ERC721 with criteria
-            IERC721 token = IERC721(offerItem.token);
-
-            // Check owner
-            if (
-                !address(token).safeStaticCallAddress(
-                    abi.encodeWithSelector(
-                        IERC721.ownerOf.selector,
-                        offerItem.identifierOrCriteria
-                    ),
-                    orderParameters.offerer
-                )
-            ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_NotOwner);
-            }
-
-            // Check approval
-            if (
-                !address(token).safeStaticCallAddress(
-                    abi.encodeWithSelector(
-                        IERC721.getApproved.selector,
-                        offerItem.identifierOrCriteria
-                    ),
-                    approvalAddress
-                )
-            ) {
-                if (
-                    !address(token).safeStaticCallBool(
-                        abi.encodeWithSelector(
-                            IERC721.isApprovedForAll.selector,
-                            orderParameters.offerer,
-                            approvalAddress
-                        ),
-                        true
-                    )
-                ) {
-                    errorsAndWarnings.addError(
-                        ValidationError.ERC721_NotApproved
-                    );
-                }
-            }
-        } else if (offerItem.itemType == ItemType.ERC1155) {
-            IERC1155 token = IERC1155(offerItem.token);
-
-            if (
-                !address(token).safeStaticCallBool(
-                    abi.encodeWithSelector(
-                        IERC721.isApprovedForAll.selector,
-                        orderParameters.offerer,
-                        approvalAddress
-                    ),
-                    true
-                )
-            ) {
-                errorsAndWarnings.addError(ValidationError.ERC1155_NotApproved);
-            }
-
-            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
-                ? offerItem.startAmount
-                : offerItem.endAmount;
-
-            if (
-                !address(token).safeStaticCallUint256(
-                    abi.encodeWithSelector(
-                        IERC1155.balanceOf.selector,
-                        orderParameters.offerer,
-                        offerItem.identifierOrCriteria
-                    ),
-                    minBalance
-                )
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InsufficientBalance
-                );
-            }
-        } else if (offerItem.itemType == ItemType.ERC20) {
-            IERC20 token = IERC20(offerItem.token);
-
-            uint256 minBalanceAndAllowance = offerItem.startAmount <
-                offerItem.endAmount
-                ? offerItem.startAmount
-                : offerItem.endAmount;
-
-            if (
-                !address(token).safeStaticCallUint256(
-                    abi.encodeWithSelector(
-                        IERC20.allowance.selector,
-                        orderParameters.offerer,
-                        approvalAddress
-                    ),
-                    minBalanceAndAllowance
-                )
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC20_InsufficientAllowance
-                );
-            }
-
-            if (
-                !address(token).safeStaticCallUint256(
-                    abi.encodeWithSelector(
-                        IERC20.balanceOf.selector,
-                        orderParameters.offerer
-                    ),
-                    minBalanceAndAllowance
-                )
-            ) {
-                errorsAndWarnings.addError(
-                    ValidationError.ERC20_InsufficientBalance
-                );
-            }
-        } else if (offerItem.itemType == ItemType.NATIVE) {
-            uint256 minBalance = offerItem.startAmount < offerItem.endAmount
-                ? offerItem.startAmount
-                : offerItem.endAmount;
-
-            if (orderParameters.offerer.balance < minBalance) {
-                errorsAndWarnings.addError(
-                    ValidationError.Native_InsufficientBalance
-                );
-            }
-
-            errorsAndWarnings.addWarning(ValidationWarning.Offer_NativeItem);
-        } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
-        }
-    }
-
-    /**
      * @notice Validates the zone call for an order
      * @param orderParameters The parameters for the order to validate
      * @return errorsAndWarnings An ErrorsAndWarnings structs with results
@@ -1049,28 +1070,6 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         ) {
             errorsAndWarnings.addError(ValidationError.Zone_RejectedOrder);
         }
-    }
-
-    /**
-     * @notice Gets the approval address for the given conduit key
-     * @param conduitKey Conduit key to get approval address for
-     * @return errorsAndWarnings An ErrorsAndWarnings structs with results
-     */
-    function getApprovalAddress(bytes32 conduitKey)
-        public
-        view
-        returns (address, ErrorsAndWarnings memory errorsAndWarnings)
-    {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
-        if (conduitKey == 0) return (address(seaport), errorsAndWarnings);
-        (address conduitAddress, bool exists) = conduitController.getConduit(
-            conduitKey
-        );
-        if (!exists) {
-            errorsAndWarnings.addError(ValidationError.Conduit_KeyInvalid);
-            conduitAddress = address(0); // Don't return invalid conduit
-        }
-        return (conduitAddress, errorsAndWarnings);
     }
 
     /**
