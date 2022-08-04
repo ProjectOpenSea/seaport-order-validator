@@ -1080,7 +1080,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 ZoneInterface.isValidOrder.selector
             )
         ) {
-            errorsAndWarnings.addError(ZoneIssue.Zone_RejectedOrder.parseInt());
+            errorsAndWarnings.addError(ZoneIssue.RejectedOrder.parseInt());
         }
     }
 

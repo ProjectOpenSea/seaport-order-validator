@@ -92,60 +92,96 @@ export const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 export const EMPTY_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-export enum ValidationError {
-  Time_EndTimeBeforeStartTime,
-  Time_Expired,
-  Status_Cancelled,
-  Status_FullyFilled,
-  Offer_ZeroItems,
-  Offer_AmountZero,
-  Consideration_AmountZero,
-  Consideration_NullRecipient,
-  Consideration_ExtraItems,
-  Consideration_PrivateSaleToSelf,
-  ProtocolFee_Missing,
-  ProtocolFee_ItemType,
-  ProtocolFee_Token,
-  ProtocolFee_StartAmount,
-  ProtocolFee_EndAmount,
-  ProtocolFee_Recipient,
-  ERC721_AmountNotOne,
-  ERC721_InvalidToken,
-  ERC721_IdentifierDNE,
-  ERC721_NotOwner,
-  ERC721_NotApproved,
-  ERC1155_InvalidToken,
-  ERC1155_NotApproved,
-  ERC1155_InsufficientBalance,
-  ERC20_IdentifierNonZero,
-  ERC20_InvalidToken,
-  ERC20_InsufficientAllowance,
-  ERC20_InsufficientBalance,
-  Native_TokenAddress,
-  Native_IdentifierNonZero,
-  Native_InsufficientBalance,
-  Zone_RejectedOrder,
-  Conduit_KeyInvalid,
-  InvalidItemType,
-  MerkleError,
-  InvalidOrderFormat,
-  Signature_Invalid,
-  Signature_LowCounter,
-  RoyaltyFee_Missing,
-  RoyaltyFee_ItemType,
-  RoyaltyFee_Token,
-  RoyaltyFee_StartAmount,
-  RoyaltyFee_EndAmount,
-  RoyaltyFee_Recipient,
+export enum TimeIssue {
+  EndTimeBeforeStartTime = 900,
+  Expired,
+  DistantExpiration,
+  NotActive,
+  ShortOrder,
 }
 
-export enum ValidationWarning {
-  Time_DistantExpiration,
-  Time_NotActive,
-  Time_ShortOrder,
-  Offer_MoreThanOneItem,
-  Offer_NativeItem,
-  Consideration_ZeroItems,
-  Signature_HighCounter,
-  Signature_OriginalConsiderationItems,
+export enum StatusIssue {
+  Cancelled = 800,
+  FullyFilled,
+}
+
+export enum OfferIssue {
+  ZeroItems = 600,
+  AmountZero,
+  MoreThanOneItem,
+  NativeItem,
+}
+
+export enum ConsiderationIssue {
+  AmountZero = 500,
+  NullRecipient,
+  ExtraItems,
+  PrivateSaleToSelf,
+  ZeroItems,
+}
+
+export enum ProtocolFeeIssue {
+  Missing = 700,
+  ItemType,
+  Token,
+  StartAmount,
+  EndAmount,
+  Recipient,
+}
+
+export enum ERC721Issue {
+  AmountNotOne = 300,
+  InvalidToken,
+  IdentifierDNE,
+  NotOwner,
+  NotApproved,
+}
+
+export enum ERC1155Issue {
+  InvalidToken = 400,
+  NotApproved,
+  InsufficientBalance,
+}
+
+export enum ERC20Issue {
+  IdentifierNonZero = 200,
+  InvalidToken,
+  InsufficientAllowance,
+  InsufficientBalance,
+}
+
+export enum NativeIssue {
+  TokenAddress = 1300,
+  IdentifierNonZero,
+  InsufficientBalance,
+}
+
+export enum ZoneIssue {
+  RejectedOrder = 1400,
+}
+
+export enum ConduitIssue {
+  KeyInvalid = 1000,
+}
+
+export enum RoyaltyFeeIssue {
+  Missing = 1200,
+  ItemType,
+  Token,
+  StartAmount,
+  EndAmount,
+  Recipient,
+}
+
+export enum SignatureIssue {
+  Invalid = 1100,
+  LowCounter,
+  HighCounter,
+  OriginalConsiderationItems,
+}
+
+export enum GenericIssue {
+  InvalidItemType = 100,
+  MerkleError,
+  InvalidOrderFormat,
 }

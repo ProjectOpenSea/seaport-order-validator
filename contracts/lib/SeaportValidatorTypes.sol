@@ -73,7 +73,7 @@ enum NativeIssue {
 }
 
 enum ZoneIssue {
-    Zone_RejectedOrder
+    RejectedOrder
 }
 
 enum ConduitIssue {
@@ -103,6 +103,10 @@ enum GenericIssue {
 }
 
 library IssueParser {
+    function parseInt(GenericIssue err) internal pure returns (uint16) {
+        return uint16(err) + 100;
+    }
+
     function parseInt(ERC20Issue err) internal pure returns (uint16) {
         return uint16(err) + 200;
     }
@@ -143,19 +147,15 @@ library IssueParser {
         return uint16(err) + 1100;
     }
 
-    function parseInt(GenericIssue err) internal pure returns (uint16) {
+    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1200;
     }
 
-    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
+    function parseInt(NativeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1300;
     }
 
-    function parseInt(NativeIssue err) internal pure returns (uint16) {
-        return uint16(err) + 1400;
-    }
-
     function parseInt(ZoneIssue err) internal pure returns (uint16) {
-        return uint16(err) + 1500;
+        return uint16(err) + 1400;
     }
 }
