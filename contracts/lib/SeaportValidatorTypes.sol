@@ -8,60 +8,154 @@ struct ValidationConfiguration {
     bool skipStrictValidation;
 }
 
-enum ValidationError {
-    Time_EndTimeBeforeStartTime,
-    Time_Expired,
-    Status_Cancelled,
-    Status_FullyFilled,
-    Offer_ZeroItems,
-    Offer_AmountZero,
-    Consideration_AmountZero,
-    Consideration_NullRecipient,
-    Consideration_ExtraItems,
-    Consideration_PrivateSaleToSelf,
-    ProtocolFee_Missing,
-    ProtocolFee_ItemType,
-    ProtocolFee_Token,
-    ProtocolFee_StartAmount,
-    ProtocolFee_EndAmount,
-    ProtocolFee_Recipient,
-    ERC721_AmountNotOne,
-    ERC721_InvalidToken,
-    ERC721_IdentifierDNE,
-    ERC721_NotOwner,
-    ERC721_NotApproved,
-    ERC1155_InvalidToken,
-    ERC1155_NotApproved,
-    ERC1155_InsufficientBalance,
-    ERC20_IdentifierNonZero,
-    ERC20_InvalidToken,
-    ERC20_InsufficientAllowance,
-    ERC20_InsufficientBalance,
-    Native_TokenAddress,
-    Native_IdentifierNonZero,
-    Native_InsufficientBalance,
-    Zone_RejectedOrder,
-    Conduit_KeyInvalid,
-    InvalidItemType,
-    MerkleError,
-    InvalidOrderFormat,
-    Signature_Invalid,
-    Signature_LowCounter,
-    RoyaltyFee_Missing,
-    RoyaltyFee_ItemType,
-    RoyaltyFee_Token,
-    RoyaltyFee_StartAmount,
-    RoyaltyFee_EndAmount,
-    RoyaltyFee_Recipient
+enum TimeIssue {
+    EndTimeBeforeStartTime,
+    Expired,
+    DistantExpiration,
+    NotActive,
+    ShortOrder
 }
 
-enum ValidationWarning {
-    Time_DistantExpiration,
-    Time_NotActive,
-    Time_ShortOrder,
-    Offer_MoreThanOneItem,
-    Offer_NativeItem,
-    Consideration_ZeroItems,
-    Signature_HighCounter,
-    Signature_OriginalConsiderationItems
+enum StatusIssue {
+    Cancelled,
+    FullyFilled
+}
+
+enum OfferIssue {
+    ZeroItems,
+    AmountZero,
+    MoreThanOneItem,
+    NativeItem
+}
+
+enum ConsiderationIssue {
+    AmountZero,
+    NullRecipient,
+    ExtraItems,
+    PrivateSaleToSelf,
+    ZeroItems
+}
+
+enum ProtocolFeeIssue {
+    Missing,
+    ItemType,
+    Token,
+    StartAmount,
+    EndAmount,
+    Recipient
+}
+
+enum ERC721Issue {
+    AmountNotOne,
+    InvalidToken,
+    IdentifierDNE,
+    NotOwner,
+    NotApproved
+}
+
+enum ERC1155Issue {
+    InvalidToken,
+    NotApproved,
+    InsufficientBalance
+}
+
+enum ERC20Issue {
+    IdentifierNonZero,
+    InvalidToken,
+    InsufficientAllowance,
+    InsufficientBalance
+}
+
+enum NativeIssue {
+    TokenAddress,
+    IdentifierNonZero,
+    InsufficientBalance
+}
+
+enum ZoneIssue {
+    RejectedOrder
+}
+
+enum ConduitIssue {
+    KeyInvalid
+}
+
+enum RoyaltyFeeIssue {
+    Missing,
+    ItemType,
+    Token,
+    StartAmount,
+    EndAmount,
+    Recipient
+}
+
+enum SignatureIssue {
+    Invalid,
+    LowCounter,
+    HighCounter,
+    OriginalConsiderationItems
+}
+
+enum GenericIssue {
+    InvalidItemType,
+    MerkleError,
+    InvalidOrderFormat
+}
+
+library IssueParser {
+    function parseInt(GenericIssue err) internal pure returns (uint16) {
+        return uint16(err) + 100;
+    }
+
+    function parseInt(ERC20Issue err) internal pure returns (uint16) {
+        return uint16(err) + 200;
+    }
+
+    function parseInt(ERC721Issue err) internal pure returns (uint16) {
+        return uint16(err) + 300;
+    }
+
+    function parseInt(ERC1155Issue err) internal pure returns (uint16) {
+        return uint16(err) + 400;
+    }
+
+    function parseInt(ConsiderationIssue err) internal pure returns (uint16) {
+        return uint16(err) + 500;
+    }
+
+    function parseInt(OfferIssue err) internal pure returns (uint16) {
+        return uint16(err) + 600;
+    }
+
+    function parseInt(ProtocolFeeIssue err) internal pure returns (uint16) {
+        return uint16(err) + 700;
+    }
+
+    function parseInt(StatusIssue err) internal pure returns (uint16) {
+        return uint16(err) + 800;
+    }
+
+    function parseInt(TimeIssue err) internal pure returns (uint16) {
+        return uint16(err) + 900;
+    }
+
+    function parseInt(ConduitIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1000;
+    }
+
+    function parseInt(SignatureIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1100;
+    }
+
+    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1200;
+    }
+
+    function parseInt(NativeIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1300;
+    }
+
+    function parseInt(ZoneIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1400;
+    }
 }

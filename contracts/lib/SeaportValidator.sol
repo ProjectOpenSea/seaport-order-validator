@@ -31,9 +31,22 @@ import {
     RoyaltyEngineInterface
 } from "../interfaces/RoyaltyEngineInterface.sol";
 import {
+    IssueParser,
     ValidationConfiguration,
-    ValidationError,
-    ValidationWarning
+    TimeIssue,
+    StatusIssue,
+    OfferIssue,
+    ConsiderationIssue,
+    ProtocolFeeIssue,
+    ERC721Issue,
+    ERC1155Issue,
+    ERC20Issue,
+    NativeIssue,
+    ZoneIssue,
+    ConduitIssue,
+    RoyaltyFeeIssue,
+    SignatureIssue,
+    GenericIssue
 } from "./SeaportValidatorTypes.sol";
 import { SignatureVerification } from "./SignatureVerification.sol";
 
@@ -44,6 +57,7 @@ import { SignatureVerification } from "./SignatureVerification.sol";
 contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using SafeStaticCall for address;
+    using IssueParser for *;
 
     ConsiderationInterface public constant seaport =
         ConsiderationInterface(0x00000000006c3852cbEf3e08E8dF289169EdE581);
@@ -92,7 +106,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         ValidationConfiguration memory validationConfiguration,
         Order memory order
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         errorsAndWarnings.concat(validateTime(order.parameters));
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
@@ -136,13 +150,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (address, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
         if (conduitKey == 0) return (address(seaport), errorsAndWarnings);
         (address conduitAddress, bool exists) = conduitController.getConduit(
             conduitKey
         );
         if (!exists) {
-            errorsAndWarnings.addError(ValidationError.Conduit_KeyInvalid);
+            errorsAndWarnings.addError(ConduitIssue.KeyInvalid.parseInt());
             conduitAddress = address(0); // Don't return invalid conduit
         }
         return (conduitAddress, errorsAndWarnings);
@@ -163,16 +177,14 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         uint256 currentCounter = seaport.getCounter(order.parameters.offerer);
         if (currentCounter > counter) {
-            errorsAndWarnings.addError(ValidationError.Signature_LowCounter);
+            errorsAndWarnings.addError(SignatureIssue.LowCounter.parseInt());
             return errorsAndWarnings;
         } else if (counter > 2 && currentCounter < counter - 2) {
-            errorsAndWarnings.addWarning(
-                ValidationWarning.Signature_HighCounter
-            );
+            errorsAndWarnings.addWarning(SignatureIssue.HighCounter.parseInt());
         }
 
         bytes32 orderHash = _deriveOrderHash(order.parameters, counter);
@@ -196,44 +208,44 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 order.parameters.totalOriginalConsiderationItems
             ) {
                 errorsAndWarnings.addWarning(
-                    ValidationWarning.Signature_OriginalConsiderationItems
+                    SignatureIssue.OriginalConsiderationItems.parseInt()
                 );
             }
 
-            errorsAndWarnings.addError(ValidationError.Signature_Invalid);
+            errorsAndWarnings.addError(SignatureIssue.Invalid.parseInt());
         }
     }
 
     /**
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
-     * @return errorsAndWarnings The errors and warnings
+     * @return errorsAndWarnings The Issues and warnings
      */
     function validateTime(OrderParameters memory orderParameters)
         public
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (orderParameters.endTime <= orderParameters.startTime) {
             errorsAndWarnings.addError(
-                ValidationError.Time_EndTimeBeforeStartTime
+                TimeIssue.EndTimeBeforeStartTime.parseInt()
             );
             return errorsAndWarnings;
         }
 
         if (orderParameters.endTime < block.timestamp) {
-            errorsAndWarnings.addError(ValidationError.Time_Expired);
+            errorsAndWarnings.addError(TimeIssue.Expired.parseInt());
             return errorsAndWarnings;
         } else if (orderParameters.endTime > block.timestamp + (30 weeks)) {
             errorsAndWarnings.addWarning(
-                ValidationWarning.Time_DistantExpiration
+                TimeIssue.DistantExpiration.parseInt()
             );
         }
 
         if (orderParameters.startTime > block.timestamp) {
-            errorsAndWarnings.addWarning(ValidationWarning.Time_NotActive);
+            errorsAndWarnings.addWarning(TimeIssue.NotActive.parseInt());
         }
 
         if (
@@ -245,7 +257,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 ) <
             30 minutes
         ) {
-            errorsAndWarnings.addWarning(ValidationWarning.Time_ShortOrder);
+            errorsAndWarnings.addWarning(TimeIssue.ShortOrder.parseInt());
         }
     }
 
@@ -259,7 +271,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         uint256 currentOffererCounter = seaport.getCounter(
             orderParameters.offerer
@@ -272,11 +284,11 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             .getOrderStatus(orderHash);
         // Order is cancelled
         if (isCancelled) {
-            errorsAndWarnings.addError(ValidationError.Status_Cancelled);
+            errorsAndWarnings.addError(StatusIssue.Cancelled.parseInt());
         }
 
         if (totalSize > 0 && totalFilled == totalSize) {
-            errorsAndWarnings.addError(ValidationError.Status_FullyFilled);
+            errorsAndWarnings.addError(StatusIssue.FullyFilled.parseInt());
         }
     }
 
@@ -292,7 +304,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         for (uint256 i = 0; i < orderParameters.offer.length; i++) {
             errorsAndWarnings.concat(validateOfferItem(orderParameters, i));
@@ -300,13 +312,11 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
 
         // You must have an offer item
         if (orderParameters.offer.length == 0) {
-            errorsAndWarnings.addError(ValidationError.Offer_ZeroItems);
+            errorsAndWarnings.addError(OfferIssue.ZeroItems.parseInt());
         }
 
         if (orderParameters.offer.length > 1) {
-            errorsAndWarnings.addWarning(
-                ValidationWarning.Offer_MoreThanOneItem
-            );
+            errorsAndWarnings.addWarning(OfferIssue.MoreThanOneItem.parseInt());
         }
     }
 
@@ -345,32 +355,32 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         OrderParameters memory orderParameters,
         uint256 offerItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         OfferItem memory offerItem = orderParameters.offer[offerItemIndex];
 
         if (offerItem.startAmount == 0 && offerItem.endAmount == 0) {
-            errorsAndWarnings.addError(ValidationError.Offer_AmountZero);
+            errorsAndWarnings.addError(OfferIssue.AmountZero.parseInt());
         }
 
         if (offerItem.itemType == ItemType.ERC721) {
             if (offerItem.startAmount != 1 || offerItem.endAmount != 1) {
-                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
+                errorsAndWarnings.addError(ERC721Issue.AmountNotOne.parseInt());
             }
 
             if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+                errorsAndWarnings.addError(ERC721Issue.InvalidToken.parseInt());
             }
         } else if (offerItem.itemType == ItemType.ERC1155) {
             if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InvalidToken
+                    ERC1155Issue.InvalidToken.parseInt()
                 );
             }
         } else if (offerItem.itemType == ItemType.ERC20) {
             if (offerItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20_IdentifierNonZero
+                    ERC20Issue.IdentifierNonZero.parseInt()
                 );
             }
 
@@ -384,20 +394,20 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             );
             if (res.length == 0) {
                 // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
+                errorsAndWarnings.addError(ERC20Issue.InvalidToken.parseInt());
             }
         } else if (offerItem.itemType == ItemType.NATIVE) {
             if (offerItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
+                errorsAndWarnings.addError(NativeIssue.TokenAddress.parseInt());
             }
 
             if (offerItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.Native_IdentifierNonZero
+                    NativeIssue.IdentifierNonZero.parseInt()
                 );
             }
         } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
+            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
@@ -413,7 +423,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         // Note: If multiple items are of the same token, token amounts are not summed for validation
 
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         (
             address approvalAddress,
@@ -438,7 +448,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     orderParameters.offerer
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_NotOwner);
+                errorsAndWarnings.addError(ERC721Issue.NotOwner.parseInt());
             }
 
             // Check approval
@@ -462,7 +472,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     )
                 ) {
                     errorsAndWarnings.addError(
-                        ValidationError.ERC721_NotApproved
+                        ERC721Issue.NotApproved.parseInt()
                     );
                 }
             }
@@ -479,7 +489,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     true
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC1155_NotApproved);
+                errorsAndWarnings.addError(ERC1155Issue.NotApproved.parseInt());
             }
 
             uint256 minBalance = offerItem.startAmount < offerItem.endAmount
@@ -497,7 +507,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InsufficientBalance
+                    ERC1155Issue.InsufficientBalance.parseInt()
                 );
             }
         } else if (offerItem.itemType == ItemType.ERC20) {
@@ -519,7 +529,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20_InsufficientAllowance
+                    ERC20Issue.InsufficientAllowance.parseInt()
                 );
             }
 
@@ -533,7 +543,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20_InsufficientBalance
+                    ERC20Issue.InsufficientBalance.parseInt()
                 );
             }
         } else if (offerItem.itemType == ItemType.NATIVE) {
@@ -543,13 +553,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
 
             if (orderParameters.offerer.balance < minBalance) {
                 errorsAndWarnings.addError(
-                    ValidationError.Native_InsufficientBalance
+                    NativeIssue.InsufficientBalance.parseInt()
                 );
             }
 
-            errorsAndWarnings.addWarning(ValidationWarning.Offer_NativeItem);
+            errorsAndWarnings.addWarning(OfferIssue.NativeItem.parseInt());
         } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
+            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
@@ -563,11 +573,11 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (orderParameters.consideration.length == 0) {
             errorsAndWarnings.addWarning(
-                ValidationWarning.Consideration_ZeroItems
+                ConsiderationIssue.ZeroItems.parseInt()
             );
             return errorsAndWarnings;
         }
@@ -589,7 +599,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         errorsAndWarnings.concat(
             validateConsiderationItemParameters(
@@ -609,7 +619,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         ConsiderationItem memory considerationItem = orderParameters
             .consideration[considerationItemIndex];
@@ -619,13 +629,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             considerationItem.endAmount == 0
         ) {
             errorsAndWarnings.addError(
-                ValidationError.Consideration_AmountZero
+                ConsiderationIssue.AmountZero.parseInt()
             );
         }
 
         if (considerationItem.recipient == address(0)) {
             errorsAndWarnings.addError(
-                ValidationError.Consideration_NullRecipient
+                ConsiderationIssue.NullRecipient.parseInt()
             );
         }
 
@@ -634,7 +644,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 considerationItem.startAmount != 1 ||
                 considerationItem.endAmount != 1
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_AmountNotOne);
+                errorsAndWarnings.addError(ERC721Issue.AmountNotOne.parseInt());
             }
 
             if (
@@ -643,7 +653,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     type(IERC721).interfaceId
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+                errorsAndWarnings.addError(ERC721Issue.InvalidToken.parseInt());
                 return errorsAndWarnings;
             }
 
@@ -658,7 +668,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC721_IdentifierDNE
+                    ERC721Issue.IdentifierDNE.parseInt()
                 );
             }
         } else if (
@@ -670,7 +680,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     type(IERC721).interfaceId
                 )
             ) {
-                errorsAndWarnings.addError(ValidationError.ERC721_InvalidToken);
+                errorsAndWarnings.addError(ERC721Issue.InvalidToken.parseInt());
             }
         } else if (
             considerationItem.itemType == ItemType.ERC1155 ||
@@ -683,13 +693,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC1155_InvalidToken
+                    ERC1155Issue.InvalidToken.parseInt()
                 );
             }
         } else if (considerationItem.itemType == ItemType.ERC20) {
             if (considerationItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.ERC20_IdentifierNonZero
+                    ERC20Issue.IdentifierNonZero.parseInt()
                 );
             }
 
@@ -704,19 +714,19 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 )
             ) {
                 // Not an ERC20 token
-                errorsAndWarnings.addError(ValidationError.ERC20_InvalidToken);
+                errorsAndWarnings.addError(ERC20Issue.InvalidToken.parseInt());
             }
         } else if (considerationItem.itemType == ItemType.NATIVE) {
             if (considerationItem.token != address(0)) {
-                errorsAndWarnings.addError(ValidationError.Native_TokenAddress);
+                errorsAndWarnings.addError(NativeIssue.TokenAddress.parseInt());
             }
             if (considerationItem.identifierOrCriteria != 0) {
                 errorsAndWarnings.addError(
-                    ValidationError.Native_IdentifierNonZero
+                    NativeIssue.IdentifierNonZero.parseInt()
                 );
             }
         } else {
-            errorsAndWarnings.addError(ValidationError.InvalidItemType);
+            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
@@ -742,7 +752,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         uint256 protocolFeeBips,
         bool checkRoyaltyFee
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         {
             bool canCheckFee = true;
@@ -766,7 +776,9 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 canCheckFee = false;
             }
             if (!canCheckFee) {
-                errorsAndWarnings.addError(ValidationError.InvalidOrderFormat);
+                errorsAndWarnings.addError(
+                    GenericIssue.InvalidOrderFormat.parseInt()
+                );
                 return errorsAndWarnings;
             }
         }
@@ -806,7 +818,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             ErrorsAndWarnings memory errorsAndWarnings
         )
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         // Check protocol fee
         address assetAddress;
@@ -859,7 +871,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             ) {
                 if (orderParameters.consideration.length < 2) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_Missing
+                        ProtocolFeeIssue.Missing.parseInt()
                     );
                     return (0, errorsAndWarnings);
                 }
@@ -872,29 +884,29 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                     protocolFeeItem.itemType != royaltyFeeConsideration.itemType
                 ) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_ItemType
+                        ProtocolFeeIssue.ItemType.parseInt()
                     );
                     return (0, errorsAndWarnings);
                 }
 
                 if (protocolFeeItem.token != royaltyFeeConsideration.token) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_Token
+                        ProtocolFeeIssue.Token.parseInt()
                     );
                 }
                 if (protocolFeeItem.startAmount < protocolFeeStartAmount) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_StartAmount
+                        ProtocolFeeIssue.StartAmount.parseInt()
                     );
                 }
                 if (protocolFeeItem.endAmount < protocolFeeEndAmount) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_EndAmount
+                        ProtocolFeeIssue.EndAmount.parseInt()
                     );
                 }
                 if (protocolFeeItem.recipient != protocolFeeRecipient) {
                     errorsAndWarnings.addError(
-                        ValidationError.ProtocolFee_Recipient
+                        ProtocolFeeIssue.Recipient.parseInt()
                     );
                 }
             }
@@ -939,7 +951,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 orderParameters.consideration.length - 1 <
                 royaltyConsiderationIndex
             ) {
-                errorsAndWarnings.addError(ValidationError.RoyaltyFee_Missing);
+                errorsAndWarnings.addError(RoyaltyFeeIssue.Missing.parseInt());
                 return (0, errorsAndWarnings);
             }
 
@@ -948,27 +960,27 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             royaltyFeePresent = true;
 
             if (royaltyFeeItem.itemType != royaltyFeeConsideration.itemType) {
-                errorsAndWarnings.addError(ValidationError.RoyaltyFee_ItemType);
+                errorsAndWarnings.addError(RoyaltyFeeIssue.ItemType.parseInt());
                 return (0, errorsAndWarnings);
             }
             if (royaltyFeeItem.token != royaltyFeeConsideration.token) {
-                errorsAndWarnings.addError(ValidationError.RoyaltyFee_Token);
+                errorsAndWarnings.addError(RoyaltyFeeIssue.Token.parseInt());
             }
             if (
                 royaltyFeeItem.startAmount < royaltyFeeConsideration.startAmount
             ) {
                 errorsAndWarnings.addError(
-                    ValidationError.RoyaltyFee_StartAmount
+                    RoyaltyFeeIssue.StartAmount.parseInt()
                 );
             }
             if (royaltyFeeItem.endAmount < royaltyFeeConsideration.endAmount) {
                 errorsAndWarnings.addError(
-                    ValidationError.RoyaltyFee_EndAmount
+                    RoyaltyFeeIssue.EndAmount.parseInt()
                 );
             }
             if (royaltyFeeItem.recipient != royaltyFeeConsideration.recipient) {
                 errorsAndWarnings.addError(
-                    ValidationError.RoyaltyFee_Recipient
+                    RoyaltyFeeIssue.Recipient.parseInt()
                 );
             }
         }
@@ -984,7 +996,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
     ) internal pure returns (ErrorsAndWarnings memory errorsAndWarnings) {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (orderParameters.consideration.length <= considerationItemIndex) {
             // Not a private sale
@@ -996,14 +1008,14 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
 
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
             errorsAndWarnings.addError(
-                ValidationError.Consideration_ExtraItems
+                ConsiderationIssue.ExtraItems.parseInt()
             );
             return errorsAndWarnings;
         }
 
         if (privateSaleConsideration.recipient == orderParameters.offerer) {
             errorsAndWarnings.addError(
-                ValidationError.Consideration_PrivateSaleToSelf
+                ConsiderationIssue.PrivateSaleToSelf.parseInt()
             );
             return errorsAndWarnings;
         }
@@ -1021,7 +1033,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         ) {
             // Invalid private sale, say extra consideration item
             errorsAndWarnings.addError(
-                ValidationError.Consideration_ExtraItems
+                ConsiderationIssue.ExtraItems.parseInt()
             );
             return errorsAndWarnings;
         }
@@ -1029,7 +1041,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         if (orderParameters.consideration.length - 1 > considerationItemIndex) {
             // Extra consideration items
             errorsAndWarnings.addError(
-                ValidationError.Consideration_ExtraItems
+                ConsiderationIssue.ExtraItems.parseInt()
             );
             return errorsAndWarnings;
         }
@@ -1045,7 +1057,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (address(orderParameters.zone).code.length == 0) {
             // Address is EOA. Valid order
@@ -1068,7 +1080,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
                 ZoneInterface.isValidOrder.selector
             )
         ) {
-            errorsAndWarnings.addError(ValidationError.Zone_RejectedOrder);
+            errorsAndWarnings.addError(ZoneIssue.RejectedOrder.parseInt());
         }
     }
 
@@ -1125,13 +1137,13 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         view
         returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         (bool success, bytes memory res) = address(murky).staticcall(
             abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
         );
         if (!success) {
-            errorsAndWarnings.addError(ValidationError.MerkleError);
+            errorsAndWarnings.addError(GenericIssue.MerkleError.parseInt());
             return (0, errorsAndWarnings);
         }
 
@@ -1156,7 +1168,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             ErrorsAndWarnings memory errorsAndWarnings
         )
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint8[](0), new uint8[](0));
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         (bool success, bytes memory res) = address(murky).staticcall(
             abi.encodeWithSelector(
@@ -1166,7 +1178,7 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
             )
         );
         if (!success) {
-            errorsAndWarnings.addError(ValidationError.MerkleError);
+            errorsAndWarnings.addError(GenericIssue.MerkleError.parseInt());
             return (new bytes32[](0), errorsAndWarnings);
         }
 

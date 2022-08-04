@@ -4,15 +4,27 @@ import { ethers } from "hardhat";
 
 import {
   CROSS_CHAIN_SEAPORT_ADDRESS,
+  ConduitIssue,
+  ConsiderationIssue,
   EIP_712_ORDER_TYPE,
   EMPTY_BYTES32,
+  ERC1155Issue,
+  ERC20Issue,
+  ERC721Issue,
+  GenericIssue,
   ItemType,
   NULL_ADDRESS,
+  NativeIssue,
   OPENSEA_CONDUIT_ADDRESS,
   OPENSEA_CONDUIT_KEY,
+  OfferIssue,
   OrderType,
-  ValidationError,
-  ValidationWarning,
+  ProtocolFeeIssue,
+  RoyaltyFeeIssue,
+  SignatureIssue,
+  StatusIssue,
+  TimeIssue,
+  ZoneIssue,
 } from "./constants";
 
 import type {
@@ -122,7 +134,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ValidationError.Time_Expired], []]);
+      ).to.include.deep.ordered.members([[TimeIssue.Expired], []]);
     });
 
     it("Order not yet active", async function () {
@@ -133,10 +145,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Time_NotActive],
-      ]);
+      ).to.include.deep.ordered.members([[], [TimeIssue.NotActive]]);
     });
 
     it("Success", async function () {
@@ -153,7 +162,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateTime(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        [ValidationError.Time_EndTimeBeforeStartTime],
+        [TimeIssue.EndTimeBeforeStartTime],
         [],
       ]);
     });
@@ -168,10 +177,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Time_ShortOrder],
-      ]);
+      ).to.include.deep.ordered.members([[], [TimeIssue.ShortOrder]]);
     });
 
     it("Expire in over 30 weeks", async function () {
@@ -180,10 +186,7 @@ describe("Validate Orders", function () {
       ).toString();
       expect(
         await validator.validateTime(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Time_DistantExpiration],
-      ]);
+      ).to.include.deep.ordered.members([[], [TimeIssue.DistantExpiration]]);
     });
   });
 
@@ -191,10 +194,7 @@ describe("Validate Orders", function () {
     it("Zero offer items", async function () {
       expect(
         await validator.validateOfferItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Offer_ZeroItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[OfferIssue.ZeroItems], []]);
     });
 
     it("more than one offer items", async function () {
@@ -220,10 +220,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOfferItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Offer_MoreThanOneItem],
-      ]);
+      ).to.include.deep.ordered.members([[], [OfferIssue.MoreThanOneItem]]);
     });
 
     it("invalid item", async function () {
@@ -256,10 +253,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_NotApproved],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.NotApproved], []]);
       });
 
       it("Not owner", async function () {
@@ -275,7 +269,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_NotOwner, ValidationError.ERC721_NotApproved],
+          [ERC721Issue.NotOwner, ERC721Issue.NotApproved],
           [],
         ]);
 
@@ -283,7 +277,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_NotOwner, ValidationError.ERC721_NotApproved],
+          [ERC721Issue.NotOwner, ERC721Issue.NotApproved],
           [],
         ]);
       });
@@ -336,10 +330,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
       });
 
       it("Invalid token: null address", async function () {
@@ -354,10 +345,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
       });
 
       it("Invalid token: eoa", async function () {
@@ -372,10 +360,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
       });
 
       it("Amount not one", async function () {
@@ -391,10 +376,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_AmountNotOne],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
 
         baseOrderParameters.offer = [
           {
@@ -408,10 +390,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_AmountNotOne],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
       });
 
       it("ERC721 Criteria offer", async function () {
@@ -430,10 +409,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.InvalidItemType],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[GenericIssue.InvalidItemType], []]);
       });
     });
 
@@ -452,10 +428,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC1155_NotApproved],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC1155Issue.NotApproved], []]);
       });
 
       it("Insufficient amount", async function () {
@@ -471,10 +444,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [
-            ValidationError.ERC1155_NotApproved,
-            ValidationError.ERC1155_InsufficientBalance,
-          ],
+          [ERC1155Issue.NotApproved, ERC1155Issue.InsufficientBalance],
           [],
         ]);
       });
@@ -491,10 +461,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC1155_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC1155Issue.InvalidToken], []]);
       });
 
       it("Success", async function () {
@@ -532,7 +499,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.ERC20_InsufficientAllowance],
+          [ERC20Issue.InsufficientAllowance],
           [],
         ]);
       });
@@ -552,10 +519,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [
-            ValidationError.ERC20_InsufficientAllowance,
-            ValidationError.ERC20_InsufficientBalance,
-          ],
+          [ERC20Issue.InsufficientAllowance, ERC20Issue.InsufficientBalance],
           [],
         ]);
       });
@@ -572,10 +536,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC20_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC20Issue.InvalidToken], []]);
       });
 
       it("Non zero identifier", async function () {
@@ -593,10 +554,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC20_IdentifierNonZero],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC20Issue.IdentifierNonZero], []]);
       });
 
       it("Success", async function () {
@@ -631,10 +589,7 @@ describe("Validate Orders", function () {
         ];
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.Native_TokenAddress],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[NativeIssue.TokenAddress], []]);
       });
 
       it("Identifier", async function () {
@@ -650,7 +605,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.Native_IdentifierNonZero],
+          [NativeIssue.IdentifierNonZero],
           [],
         ]);
       });
@@ -668,10 +623,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [],
-          [ValidationWarning.Offer_NativeItem],
-        ]);
+        ).to.include.deep.ordered.members([[], [OfferIssue.NativeItem]]);
       });
 
       it("Insufficient balance", async function () {
@@ -690,8 +642,8 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.Native_InsufficientBalance],
-          [ValidationWarning.Offer_NativeItem],
+          [NativeIssue.InsufficientBalance],
+          [OfferIssue.NativeItem],
         ]);
       });
     });
@@ -701,10 +653,7 @@ describe("Validate Orders", function () {
     it("Zero consideration items", async function () {
       expect(
         await validator.validateConsiderationItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Consideration_ZeroItems],
-      ]);
+      ).to.include.deep.ordered.members([[], [ConsiderationIssue.ZeroItems]]);
     });
 
     it("Null recipient", async function () {
@@ -722,7 +671,7 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateConsiderationItems(baseOrderParameters)
       ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_NullRecipient],
+        [ConsiderationIssue.NullRecipient],
         [],
       ]);
     });
@@ -741,10 +690,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateConsiderationItems(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_AmountZero],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.AmountZero], []]);
     });
 
     it("Invalid consideration item type", async function () {
@@ -780,10 +726,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_AmountNotOne],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
 
         baseOrderParameters.consideration = [
           {
@@ -798,10 +741,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_AmountNotOne],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
       });
 
       it("ERC721 consideration DNE", async function () {
@@ -818,10 +758,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_IdentifierDNE],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.IdentifierDNE], []]);
       });
 
       it("ERC721 invalid token", async function () {
@@ -838,10 +775,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
       });
 
       it("ERC721 criteria invalid token", async function () {
@@ -858,10 +792,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC721_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
       });
 
       it("ERC721 criteria success", async function () {
@@ -897,10 +828,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC1155_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC1155Issue.InvalidToken], []]);
       });
 
       it("success", async function () {
@@ -936,10 +864,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC20_InvalidToken],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC20Issue.InvalidToken], []]);
       });
 
       it("ERC20 non zero id", async function () {
@@ -956,10 +881,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.ERC20_IdentifierNonZero],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ERC20Issue.IdentifierNonZero], []]);
       });
     });
 
@@ -978,10 +900,7 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([
-          [ValidationError.Native_TokenAddress],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[NativeIssue.TokenAddress], []]);
       });
 
       it("Native non-zero id", async function () {
@@ -999,7 +918,7 @@ describe("Validate Orders", function () {
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
-          [ValidationError.Native_IdentifierNonZero],
+          [NativeIssue.IdentifierNonZero],
           [],
         ]);
       });
@@ -1145,10 +1064,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
     it("Private sale to self", async function () {
@@ -1188,7 +1104,7 @@ describe("Validate Orders", function () {
           false
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_PrivateSaleToSelf],
+        [ConsiderationIssue.PrivateSaleToSelf],
         [],
       ]);
     });
@@ -1228,10 +1144,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.ERC721,
@@ -1248,10 +1161,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.ERC721,
@@ -1268,10 +1178,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.ERC721,
@@ -1288,10 +1195,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
 
       baseOrderParameters.consideration[1] = {
         itemType: ItemType.ERC721,
@@ -1308,10 +1212,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
     it("private sale for a bid", async function () {
@@ -1350,10 +1251,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Consideration_ExtraItems],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
     it("incorrect royalty fees setting", async function () {
@@ -1400,10 +1298,7 @@ describe("Validate Orders", function () {
           "250",
           true
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.RoyaltyFee_ItemType],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
     });
   });
 
@@ -1439,10 +1334,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [3]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Zone_RejectedOrder],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
     });
 
     it("zone revert", async function () {
@@ -1450,10 +1342,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Zone_RejectedOrder],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
     });
 
     it("zone revert2", async function () {
@@ -1461,10 +1350,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [2]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Zone_RejectedOrder],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
     });
 
     it("not a zone", async function () {
@@ -1472,10 +1358,7 @@ describe("Validate Orders", function () {
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Zone_RejectedOrder],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
     });
   });
 
@@ -1503,7 +1386,7 @@ describe("Validate Orders", function () {
         )
       ).to.include.deep.ordered.members([
         NULL_ADDRESS,
-        [[ValidationError.Conduit_KeyInvalid], []],
+        [[ConduitIssue.KeyInvalid], []],
       ]);
     });
 
@@ -1518,10 +1401,7 @@ describe("Validate Orders", function () {
         await validator.isValidConduit(
           "0x0000000000000000000000000000000000000000000000000000000000000099"
         )
-      ).to.include.deep.ordered.members([
-        [ValidationError.Conduit_KeyInvalid],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[ConduitIssue.KeyInvalid], []]);
     });
   });
 
@@ -1580,7 +1460,7 @@ describe("Validate Orders", function () {
 
       const res = await validator.getMerkleProof(input, 8);
       expect(res.errorsAndWarnings).to.include.deep.ordered.members([
-        [ValidationError.MerkleError],
+        [GenericIssue.MerkleError],
         [],
       ]);
     });
@@ -1591,7 +1471,7 @@ describe("Validate Orders", function () {
       const res = await validator.getMerkleRoot(input);
       expect(res.merkleRoot).to.equal(EMPTY_BYTES32);
       expect(res.errorsAndWarnings).to.include.deep.ordered.members([
-        [ValidationError.MerkleError],
+        [GenericIssue.MerkleError],
         [],
       ]);
     });
@@ -1679,10 +1559,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Status_FullyFilled],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[StatusIssue.FullyFilled], []]);
     });
 
     it("Order Cancelled", async function () {
@@ -1705,10 +1582,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateOrderStatus(baseOrderParameters)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Status_Cancelled],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[StatusIssue.Cancelled], []]);
     });
   });
 
@@ -1829,10 +1703,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_Recipient],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Recipient], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1850,10 +1721,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_StartAmount],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.StartAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1871,10 +1739,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_EndAmount],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.EndAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1891,10 +1756,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_Token],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Token], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.NATIVE,
@@ -1911,10 +1773,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_ItemType],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.ItemType], []]);
       });
 
       it("Protocol fee missing", async function () {
@@ -1945,10 +1804,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.ProtocolFee_Missing],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Missing], []]);
       });
     });
 
@@ -2067,10 +1923,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_Missing],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Missing], []]);
       });
 
       it("mismatch", async function () {
@@ -2109,10 +1962,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_StartAmount],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.StartAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2130,10 +1980,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_EndAmount],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.EndAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2151,10 +1998,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_Token],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Token], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2172,10 +2016,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_Recipient],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Recipient], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC721,
@@ -2192,10 +2033,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([
-          [ValidationError.RoyaltyFee_ItemType],
-          [],
-        ]);
+        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
       });
     });
 
@@ -2228,7 +2066,7 @@ describe("Validate Orders", function () {
           true
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidOrderFormat],
+        [GenericIssue.InvalidOrderFormat],
         [],
       ]);
     });
@@ -2262,7 +2100,7 @@ describe("Validate Orders", function () {
           true
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidOrderFormat],
+        [GenericIssue.InvalidOrderFormat],
         [],
       ]);
     });
@@ -2296,7 +2134,7 @@ describe("Validate Orders", function () {
           true
         )
       ).to.include.deep.ordered.members([
-        [ValidationError.InvalidOrderFormat],
+        [GenericIssue.InvalidOrderFormat],
         [],
       ]);
     });
@@ -2342,10 +2180,7 @@ describe("Validate Orders", function () {
       const order = await signOrder(baseOrderParameters, otherAccounts[0]);
       expect(
         await validator.validateSignature(order)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Signature_Invalid],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[SignatureIssue.Invalid], []]);
     });
 
     it("1271: failure 2", async function () {
@@ -2370,10 +2205,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateSignature(order)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Signature_Invalid],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[SignatureIssue.Invalid], []]);
     });
 
     it("712: success", async function () {
@@ -2418,8 +2250,8 @@ describe("Validate Orders", function () {
       expect(
         await validator.validateSignature(order)
       ).to.include.deep.ordered.members([
-        [ValidationError.Signature_Invalid],
-        [ValidationWarning.Signature_OriginalConsiderationItems],
+        [SignatureIssue.Invalid],
+        [SignatureIssue.OriginalConsiderationItems],
       ]);
     });
 
@@ -2440,10 +2272,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateSignatureWithCounter(order, 0)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Signature_LowCounter],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[SignatureIssue.LowCounter], []]);
     });
 
     it("712: counter high counter", async function () {
@@ -2461,10 +2290,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateSignatureWithCounter(order, 4)
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Signature_HighCounter],
-      ]);
+      ).to.include.deep.ordered.members([[], [SignatureIssue.HighCounter]]);
     });
 
     it("712: failure", async function () {
@@ -2482,10 +2308,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.validateSignature(order)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Signature_Invalid],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[SignatureIssue.Invalid], []]);
     });
 
     it("Validate on-chain", async function () {
@@ -2705,10 +2528,7 @@ describe("Validate Orders", function () {
           validationConfiguration,
           order
         )
-      ).to.include.deep.ordered.members([
-        [],
-        [ValidationWarning.Offer_MoreThanOneItem],
-      ]);
+      ).to.include.deep.ordered.members([[], [OfferIssue.MoreThanOneItem]]);
     });
 
     it("No protocol fee when 0", async function () {
@@ -2787,10 +2607,7 @@ describe("Validate Orders", function () {
 
       expect(
         await validator.isValidOrder(order)
-      ).to.include.deep.ordered.members([
-        [ValidationError.Signature_Invalid],
-        [],
-      ]);
+      ).to.include.deep.ordered.members([[SignatureIssue.Invalid], []]);
     });
 
     it("no offer", async function () {
@@ -2819,9 +2636,9 @@ describe("Validate Orders", function () {
         await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([
         [
-          ValidationError.Offer_ZeroItems,
-          ValidationError.InvalidOrderFormat,
-          ValidationError.Signature_Invalid,
+          OfferIssue.ZeroItems,
+          GenericIssue.InvalidOrderFormat,
+          SignatureIssue.Invalid,
         ],
         [],
       ]);
@@ -2863,9 +2680,9 @@ describe("Validate Orders", function () {
         await validator.isValidOrder(order)
       ).to.include.deep.ordered.members([
         [
-          ValidationError.Offer_AmountZero,
-          ValidationError.ERC721_InvalidToken,
-          ValidationError.Signature_Invalid,
+          OfferIssue.AmountZero,
+          ERC721Issue.InvalidToken,
+          SignatureIssue.Invalid,
         ],
         [],
       ]);
