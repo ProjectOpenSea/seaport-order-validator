@@ -1,62 +1,58 @@
 # Decode Function Results
-Use this file to decode validation results from `SeaportValidator`. The return value from most `SeaportValidator` functions is a `ErrorsAndWarnings` struct which contains two `uint8` arrays. First is the errors and second is the warnings. See below for the value of codes.
+Use this file to decode validation results from `SeaportValidator`. The return value from most `SeaportValidator` functions is a `ErrorsAndWarnings` struct which contains two `uint16` arrays. First is the errors and second is the warnings. See below for the value of codes.
 
-## Error Codes
-| Code | Error |
+## Issue Codes
+| Code | Issue |
 | - | ----------- |
-| 0 | End time is before start time |
-| 1 | Order expired |
-| 2 | Order cancelled |
-| 3 | Order fully filled |
-| 4 | Zero offer items |
-| 5 | Offer amount must not be zero |
-| 6 | Consideration amount must not be zero |
-| 7 | Consideration recipient must not be null address |
-| 8 | Consideration contains extra items |
-| 9 | Private sale can not be to self |
-| 10 | Protocol fee missing |
-| 11 | Protocol fee item type incorrect |
-| 12 | Protocol fee token incorrect |
-| 13 | Protocol fee start amount too low |
-| 14 | Protocol fee end amount too low |
-| 15 | Protocol fee recipient incorrect |
-| 16 | ERC721 amount must be one |
-| 17 | ERC721 token is invalid |
-| 18 | ERC721 token with identifier does not exist |
-| 19 | ERC721 not owner of token |
-| 20 | ERC721 conduit not approved |
-| 21 | ERC1155 invalid token |
-| 22 | ERC1155 conduit not approved |
-| 23 | ERC1155 insufficient balance |
-| 24 | ERC20 identifier must be zero |
-| 25 | ERC20 invalid token |
-| 26 | ERC20 insufficient allowance to conduit |
-| 27 | ERC20 insufficient balance |
-| 28 | Native token address must be null address |
-| 29 | Native token identifier must be zero |
-| 30 | Native token insufficient balance |
-| 31 | Zone rejected order |
-| 32 | Conduit key invalid |
-| 33 | Invalid item type |
-| 34 | Merkle error |
-| 35 | Invalid order format. Ensure offer/consideration follow requirements |
-| 36 | Signature invalid |
-| 37 | Signature counter below current counter |
-| 38 | Royalty fee missing |
-| 39 | Royalty fee item type incorrect |
-| 40 | Royalty fee token incorrect |
-| 41 | Royalty fee start amount too low |
-| 42 | Royalty fee end amount too low |
-| 43 | Royalty fee recipient incorrect |
-
-## Warning Codes
-| Code | Warning |
-| - | ----------- |
-| 0 | Order expires in over 30 weeks |
-| 1 | Order not active |
-| 2 | Order duration less than 30 minutes |
-| 3 | More than one offer item |
-| 4 | Native offer item |
-| 5 | Zero consideration items |
-| 6 | Signature counter more than two greater than current counter |
-| 7 | Signature may be invalid since `totalOriginalConsiderationItems` is not set correctly |
+| 100 | Invalid item type |
+| 101 | Merkle error |
+| 102 | Invalid order format. Ensure offer/consideration follow requirements |
+| 200 | ERC20 identifier must be zero |
+| 201 | ERC20 invalid token |
+| 202 | ERC20 insufficient allowance to conduit |
+| 203 | ERC20 insufficient balance |
+| 300 | ERC721 amount must be one |
+| 301 | ERC721 token is invalid |
+| 302 | ERC721 token with identifier does not exist |
+| 303 | ERC721 not owner of token |
+| 304 | ERC721 conduit not approved |
+| 400 | ERC1155 invalid token |
+| 401 | ERC1155 conduit not approved |
+| 402 | ERC1155 insufficient balance |
+| 500 | Consideration amount must not be zero |
+| 501 | Consideration recipient must not be null address |
+| 502 | Consideration contains extra items |
+| 503 | Private sale can not be to self |
+| 504 | Zero consideration items |
+| 600 | Zero offer items |
+| 601 | Offer amount must not be zero |
+| 602 | More than one offer item |
+| 603 | Native offer item |
+| 700 | Protocol fee missing |
+| 701 | Protocol fee item type incorrect |
+| 702 | Protocol fee token incorrect |
+| 703 | Protocol fee start amount too low |
+| 704 | Protocol fee end amount too low |
+| 705 | Protocol fee recipient incorrect |
+| 800 | Order cancelled |
+| 801 | Order fully filled |
+| 900 | End time is before start time |
+| 901 | Order expired |
+| 902 | Order expires in over 30 weeks |
+| 903 | Order not active |
+| 904 | Order duration less than 30 minutes |
+| 1000 | Conduit key invalid |
+| 1100 | Signature invalid |
+| 1101 | Signature counter below current counter |
+| 1102 | Signature counter more than two greater than current counter |
+| 1103 | Signature may be invalid since `totalOriginalConsiderationItems` is not set correctly |
+| 1200 | Royalty fee missing |
+| 1201 | Royalty fee item type incorrect |
+| 1202 | Royalty fee token incorrect |
+| 1203 | Royalty fee start amount too low |
+| 1204 | Royalty fee end amount too low |
+| 1205 | Royalty fee recipient incorrect |
+| 1300 | Native token address must be null address |
+| 1301 | Native token identifier must be zero |
+| 1302 | Native token insufficient balance |
+| 1400 | Zone rejected order |
