@@ -8,157 +8,154 @@ struct ValidationConfiguration {
     bool skipStrictValidation;
 }
 
-enum TimeError {
+enum TimeIssue {
     EndTimeBeforeStartTime,
-    Expired
+    Expired,
+    DistantExpiration,
+    NotActive,
+    ShortOrder
 }
 
-enum StatusError {
+enum StatusIssue {
     Cancelled,
     FullyFilled
 }
 
-enum OfferError {
-    Offer_ZeroItems,
-    Offer_AmountZero
+enum OfferIssue {
+    ZeroItems,
+    AmountZero,
+    MoreThanOneItem,
+    NativeItem
 }
 
-enum ConsiderationError {
-    Consideration_AmountZero,
-    Consideration_NullRecipient,
-    Consideration_ExtraItems,
-    Consideration_PrivateSaleToSelf
+enum ConsiderationIssue {
+    AmountZero,
+    NullRecipient,
+    ExtraItems,
+    PrivateSaleToSelf,
+    ZeroItems
 }
 
-enum ProtocolFeeError {
-    ProtocolFee_Missing,
-    ProtocolFee_ItemType,
-    ProtocolFee_Token,
-    ProtocolFee_StartAmount,
-    ProtocolFee_EndAmount,
-    ProtocolFee_Recipient
+enum ProtocolFeeIssue {
+    Missing,
+    ItemType,
+    Token,
+    StartAmount,
+    EndAmount,
+    Recipient
 }
 
-enum ERC721Error {
-    ERC721_AmountNotOne,
-    ERC721_InvalidToken,
-    ERC721_IdentifierDNE,
-    ERC721_NotOwner,
-    ERC721_NotApproved
+enum ERC721Issue {
+    AmountNotOne,
+    InvalidToken,
+    IdentifierDNE,
+    NotOwner,
+    NotApproved
 }
 
-enum ERC1155Error {
-    ERC1155_InvalidToken,
-    ERC1155_NotApproved,
-    ERC1155_InsufficientBalance
+enum ERC1155Issue {
+    InvalidToken,
+    NotApproved,
+    InsufficientBalance
 }
 
-enum ERC20Error {
-    ERC20_IdentifierNonZero,
-    ERC20_InvalidToken,
-    ERC20_InsufficientAllowance,
-    ERC20_InsufficientBalance
+enum ERC20Issue {
+    IdentifierNonZero,
+    InvalidToken,
+    InsufficientAllowance,
+    InsufficientBalance
 }
 
-enum NativeError {
-    Native_TokenAddress,
-    Native_IdentifierNonZero,
-    Native_InsufficientBalance
+enum NativeIssue {
+    TokenAddress,
+    IdentifierNonZero,
+    InsufficientBalance
 }
 
-enum ZoneError {
+enum ZoneIssue {
     Zone_RejectedOrder
 }
 
-enum ConduitError {
-    Conduit_KeyInvalid
+enum ConduitIssue {
+    KeyInvalid
 }
 
-enum RoyaltyFeeError {
-    RoyaltyFee_Missing,
-    RoyaltyFee_ItemType,
-    RoyaltyFee_Token,
-    RoyaltyFee_StartAmount,
-    RoyaltyFee_EndAmount,
-    RoyaltyFee_Recipient
+enum RoyaltyFeeIssue {
+    Missing,
+    ItemType,
+    Token,
+    StartAmount,
+    EndAmount,
+    Recipient
 }
 
-enum SignatureError {
-    Signature_Invalid,
-    Signature_LowCounter
+enum SignatureIssue {
+    Invalid,
+    LowCounter,
+    HighCounter,
+    OriginalConsiderationItems
 }
 
-enum GenericError {
+enum GenericIssue {
     InvalidItemType,
     MerkleError,
     InvalidOrderFormat
 }
 
-library ErrorParser {
-    function parseInt(ERC20Error err) internal pure returns (uint16) {
+library IssueParser {
+    function parseInt(ERC20Issue err) internal pure returns (uint16) {
         return uint16(err) + 200;
     }
 
-    function parseInt(ERC721Error err) internal pure returns (uint16) {
+    function parseInt(ERC721Issue err) internal pure returns (uint16) {
         return uint16(err) + 300;
     }
 
-    function parseInt(ERC1155Error err) internal pure returns (uint16) {
+    function parseInt(ERC1155Issue err) internal pure returns (uint16) {
         return uint16(err) + 400;
     }
 
-    function parseInt(ConsiderationError err) internal pure returns (uint16) {
+    function parseInt(ConsiderationIssue err) internal pure returns (uint16) {
         return uint16(err) + 500;
     }
 
-    function parseInt(OfferError err) internal pure returns (uint16) {
+    function parseInt(OfferIssue err) internal pure returns (uint16) {
         return uint16(err) + 600;
     }
 
-    function parseInt(ProtocolFeeError err) internal pure returns (uint16) {
+    function parseInt(ProtocolFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 700;
     }
 
-    function parseInt(StatusError err) internal pure returns (uint16) {
+    function parseInt(StatusIssue err) internal pure returns (uint16) {
         return uint16(err) + 800;
     }
 
-    function parseInt(TimeError err) internal pure returns (uint16) {
+    function parseInt(TimeIssue err) internal pure returns (uint16) {
         return uint16(err) + 900;
     }
 
-    function parseInt(ConduitError err) internal pure returns (uint16) {
+    function parseInt(ConduitIssue err) internal pure returns (uint16) {
         return uint16(err) + 1000;
     }
 
-    function parseInt(SignatureError err) internal pure returns (uint16) {
+    function parseInt(SignatureIssue err) internal pure returns (uint16) {
         return uint16(err) + 1100;
     }
 
-    function parseInt(GenericError err) internal pure returns (uint16) {
+    function parseInt(GenericIssue err) internal pure returns (uint16) {
         return uint16(err) + 1200;
     }
 
-    function parseInt(RoyaltyFeeError err) internal pure returns (uint16) {
+    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1300;
     }
 
-    function parseInt(NativeError err) internal pure returns (uint16) {
+    function parseInt(NativeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1400;
     }
 
-    function parseInt(ZoneError err) internal pure returns (uint16) {
+    function parseInt(ZoneIssue err) internal pure returns (uint16) {
         return uint16(err) + 1500;
     }
-}
-
-enum ValidationWarning {
-    Time_DistantExpiration,
-    Time_NotActive,
-    Time_ShortOrder,
-    Offer_MoreThanOneItem,
-    Offer_NativeItem,
-    Consideration_ZeroItems,
-    Signature_HighCounter,
-    Signature_OriginalConsiderationItems
 }

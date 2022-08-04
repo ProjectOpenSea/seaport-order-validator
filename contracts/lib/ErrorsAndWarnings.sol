@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: MIT
-import { ValidationWarning } from "./SeaportValidatorTypes.sol";
-
 pragma solidity ^0.8.10;
 
 struct ErrorsAndWarnings {
@@ -15,13 +13,6 @@ library ErrorsAndWarningsLib {
     {
         ew1.errors = concatMemory(ew1.errors, ew2.errors);
         ew1.warnings = concatMemory(ew1.warnings, ew2.warnings);
-    }
-
-    function addWarning(ErrorsAndWarnings memory ew, ValidationWarning warn)
-        internal
-        pure
-    {
-        ew.warnings = pushMemory(ew.warnings, uint8(warn));
     }
 
     function addError(ErrorsAndWarnings memory ew, uint16 err) internal pure {
