@@ -70,8 +70,37 @@ contract SeaportValidator is
     ConduitControllerInterface public constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
     /// @notice Ethereum royalty engine address
-    RoyaltyEngineInterface public constant royaltyEngine =
-        RoyaltyEngineInterface(0x0385603ab55642cb4Dd5De3aE9e306809991804f);
+    RoyaltyEngineInterface public immutable royaltyEngine;
+
+    constructor() {
+        address royaltyEngineAddress;
+        if (block.chainid == 1) {
+            royaltyEngineAddress = 0x0385603ab55642cb4Dd5De3aE9e306809991804f;
+        } else if (block.chainid == 3) {
+            // Ropsten
+            royaltyEngineAddress = 0xFf5A6F7f36764aAD301B7C9E85A5277614Df5E26;
+        } else if (block.chainid == 4) {
+            // Rinkeby
+            royaltyEngineAddress = 0x8d17687ea9a6bb6efA24ec11DcFab01661b2ddcd;
+        } else if (block.chainid == 5) {
+            // Goerli
+            royaltyEngineAddress = 0xe7c9Cb6D966f76f3B5142167088927Bf34966a1f;
+        } else if (block.chainid == 42) {
+            // Kovan
+            royaltyEngineAddress = 0x54D88324cBedfFe1e62c9A59eBb310A11C295198;
+        } else if (block.chainid == 137) {
+            // Polygon
+            royaltyEngineAddress = 0x28EdFcF0Be7E86b07493466e7631a213bDe8eEF2;
+        } else if (block.chainid == 80001) {
+            // Mumbai
+            royaltyEngineAddress = 0x0a01E11887f727D1b1Cd81251eeEE9BEE4262D07;
+        } else {
+            // No royalty engine for this chain
+            royaltyEngineAddress = address(0);
+        }
+
+        royaltyEngine = RoyaltyEngineInterface(royaltyEngineAddress);
+    }
 
     /**
      * @notice Conduct a comprehensive validation of the given order.
@@ -841,7 +870,7 @@ contract SeaportValidator is
     /**
      * @notice Strict validation operates under tight assumptions. It validates protocol
      *    fee, royalty fee, private sale consideration, and overall order format.
-     * @dev Only checks first fee recipient provided by RoyaltyRegistry.
+     * @dev Only checks first fee recipient provided by RoyaltyEngine.
      *    Order of consideration items must be as follows:
      *    1. Primary consideration
      *    2. Protocol fee
@@ -862,8 +891,10 @@ contract SeaportValidator is
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
+        // Check that order matches the required format (bid or ask)
         {
             bool canCheckFee = true;
+            // Single offer item and at least one consideration
             if (
                 orderParameters.offer.length != 1 ||
                 orderParameters.consideration.length == 0
@@ -871,12 +902,14 @@ contract SeaportValidator is
                 // Not bid or ask, can't check fees
                 canCheckFee = false;
             } else if (
+                // Can't have both items be fungible
                 isPaymentToken(orderParameters.offer[0].itemType) &&
                 isPaymentToken(orderParameters.consideration[0].itemType)
             ) {
                 // Not bid or ask, can't check fees
                 canCheckFee = false;
             } else if (
+                // Can't have both items be non-fungible
                 !isPaymentToken(orderParameters.offer[0].itemType) &&
                 !isPaymentToken(orderParameters.consideration[0].itemType)
             ) {
@@ -884,6 +917,7 @@ contract SeaportValidator is
                 canCheckFee = false;
             }
             if (!canCheckFee) {
+                // Does not match required format
                 errorsAndWarnings.addError(
                     GenericIssue.InvalidOrderFormat.parseInt()
                 );
@@ -891,6 +925,7 @@ contract SeaportValidator is
             }
         }
 
+        // Validate secondary consideration items (fees)
         (
             uint256 tertiaryConsiderationIndex,
             ErrorsAndWarnings memory errorsAndWarningsLocal
@@ -903,6 +938,8 @@ contract SeaportValidator is
 
         errorsAndWarnings.concat(errorsAndWarningsLocal);
 
+        // Validate tertiary consideration items if not 0 (0 indicates error).
+        // Only if no prior errors
         if (tertiaryConsiderationIndex != 0) {
             errorsAndWarnings.concat(
                 _validateTertiaryConsiderationItems(
@@ -928,16 +965,20 @@ contract SeaportValidator is
     {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
-        // Check protocol fee
+        // non-fungible item address
         address assetAddress;
+        // non-fungible item identifier
         uint256 assetIdentifier;
+        // fungible item start amount
         uint256 transactionAmountStart;
+        // fungible item end amount
         uint256 transactionAmountEnd;
 
+        // Consideration item to hold expected royalty fee info
         ConsiderationItem memory royaltyFeeConsideration;
 
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
-            // Offer is a bid
+            // Offer is a bid. oOffer item is fungible and used for fees
             royaltyFeeConsideration.itemType = orderParameters
                 .offer[0]
                 .itemType;
@@ -945,12 +986,13 @@ contract SeaportValidator is
             transactionAmountStart = orderParameters.offer[0].startAmount;
             transactionAmountEnd = orderParameters.offer[0].endAmount;
 
+            // Set non-fungible information for calculating royalties
             assetAddress = orderParameters.consideration[0].token;
             assetIdentifier = orderParameters
                 .consideration[0]
                 .identifierOrCriteria;
         } else {
-            // Assume order must be an ask
+            // Offer is a bid. Consideration item is fungible and used for fees
             royaltyFeeConsideration.itemType = orderParameters
                 .consideration[0]
                 .itemType;
@@ -962,21 +1004,26 @@ contract SeaportValidator is
                 .startAmount;
             transactionAmountEnd = orderParameters.consideration[0].endAmount;
 
+            // Set non-fungible information for calculating royalties
             assetAddress = orderParameters.offer[0].token;
             assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
         }
 
+        // Store flag if protocol fee is present
         bool protocolFeePresent = false;
         {
+            // Calculate protocol fee start and end amounts
             uint256 protocolFeeStartAmount = (transactionAmountStart *
                 protocolFeeBips) / 10000;
             uint256 protocolFeeEndAmount = (transactionAmountEnd *
                 protocolFeeBips) / 10000;
 
+            // Check if protocol fee check is desired. Skip if calculated amount is zero.
             if (
                 protocolFeeRecipient != address(0) &&
                 (protocolFeeStartAmount > 0 || protocolFeeEndAmount > 0)
             ) {
+                // Ensure protocol fee is present
                 if (orderParameters.consideration.length < 2) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.Missing.parseInt()
@@ -988,6 +1035,7 @@ contract SeaportValidator is
                 ConsiderationItem memory protocolFeeItem = orderParameters
                     .consideration[1];
 
+                // Check item type
                 if (
                     protocolFeeItem.itemType != royaltyFeeConsideration.itemType
                 ) {
@@ -996,22 +1044,25 @@ contract SeaportValidator is
                     );
                     return (0, errorsAndWarnings);
                 }
-
+                // Check token
                 if (protocolFeeItem.token != royaltyFeeConsideration.token) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.Token.parseInt()
                     );
                 }
+                // Check start amount
                 if (protocolFeeItem.startAmount < protocolFeeStartAmount) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.StartAmount.parseInt()
                     );
                 }
+                // Check end amount
                 if (protocolFeeItem.endAmount < protocolFeeEndAmount) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.EndAmount.parseInt()
                     );
                 }
+                // Check recipient
                 if (protocolFeeItem.recipient != protocolFeeRecipient) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.Recipient.parseInt()
@@ -1022,25 +1073,39 @@ contract SeaportValidator is
 
         // Check royalty fee
         {
-            (
-                address payable[] memory royaltyRecipients,
-                uint256[] memory royaltyAmountsStart
-            ) = royaltyEngine.getRoyaltyView(
+            try
+                royaltyEngine.getRoyaltyView(
                     assetAddress,
                     assetIdentifier,
                     transactionAmountStart
-                );
-            if (royaltyRecipients.length != 0) {
-                royaltyFeeConsideration.recipient = royaltyRecipients[0];
-                royaltyFeeConsideration.startAmount = royaltyAmountsStart[0];
+                )
+            returns (
+                address payable[] memory royaltyRecipients,
+                uint256[] memory royaltyAmountsStart
+            ) {
+                if (royaltyRecipients.length != 0) {
+                    royaltyFeeConsideration.recipient = royaltyRecipients[0];
+                    royaltyFeeConsideration.startAmount = royaltyAmountsStart[
+                        0
+                    ];
+                }
+            } catch {
+                // Royalty not found
+            }
 
-                (, uint256[] memory royaltyAmountsEnd) = royaltyEngine
-                    .getRoyaltyView(
+            if (royaltyFeeConsideration.recipient != address(0)) {
+                try
+                    royaltyEngine.getRoyaltyView(
                         assetAddress,
                         assetIdentifier,
                         transactionAmountEnd
-                    );
-                royaltyFeeConsideration.endAmount = royaltyAmountsEnd[0];
+                    )
+                returns (
+                    address payable[] memory,
+                    uint256[] memory royaltyAmountsEnd
+                ) {
+                    royaltyFeeConsideration.endAmount = royaltyAmountsEnd[0];
+                } catch {}
             }
         }
 
