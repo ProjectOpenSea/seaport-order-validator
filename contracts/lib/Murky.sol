@@ -1,24 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import {
+    ErrorsAndWarnings,
+    ErrorsAndWarningsLib
+} from "./ErrorsAndWarnings.sol";
+
+import { IssueParser, MerkleIssue } from "./SeaportValidatorTypes.sol";
+
 contract Murky {
-    bool public immutable HASH_ODD_WITH_ZERO;
+    using ErrorsAndWarningsLib for ErrorsAndWarnings;
+    using IssueParser for MerkleIssue;
 
-    constructor(bool hashOddWithZero) {
-        HASH_ODD_WITH_ZERO = hashOddWithZero;
-    }
+    bool internal constant HASH_ODD_WITH_ZERO = false;
 
-    function verifyProof(
+    function _verifyProof(
         bytes32 root,
-        bytes32[] calldata proof,
+        bytes32[] memory proof,
         bytes32 valueToProve
-    ) external pure returns (bool) {
+    ) internal pure returns (bool) {
         // proof length must be less than max array size
         bytes32 rollingHash = valueToProve;
         uint256 length = proof.length;
         unchecked {
             for (uint256 i = 0; i < length; ++i) {
-                rollingHash = hashLeafPairs(rollingHash, proof[i]);
+                rollingHash = _hashLeafPairs(rollingHash, proof[i]);
             }
         }
         return root == rollingHash;
@@ -29,8 +35,8 @@ contract Murky {
      ********************/
 
     /// ascending sort and concat prior to hashing
-    function hashLeafPairs(bytes32 left, bytes32 right)
-        public
+    function _hashLeafPairs(bytes32 left, bytes32 right)
+        internal
         pure
         returns (bytes32 _hash)
     {
@@ -52,15 +58,24 @@ contract Murky {
      * PROOF GENERATION *
      ********************/
 
-    function getRoot(bytes32[] memory data)
-        external
-        view
-        returns (bytes32 result)
+    function _getRoot(uint256[] memory data)
+        internal
+        pure
+        returns (bytes32 result, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        require(data.length > 1, "won't generate root for single leaf");
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
+
+        if (data.length < 2) {
+            errorsAndWarnings.addError(MerkleIssue.SingleLeaf.parseInt());
+            return (0, errorsAndWarnings);
+        }
+
         bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
-        processInput(data);
+        if (_processInput(data) == false) {
+            errorsAndWarnings.addError(MerkleIssue.Unsorted.parseInt());
+            return (0, errorsAndWarnings);
+        }
 
         assembly {
             function hashLeafPairs(left, right) -> _hash {
@@ -144,15 +159,27 @@ contract Murky {
         }
     }
 
-    function getProof(bytes32[] memory data, uint256 node)
-        external
-        view
-        returns (bytes32[] memory result)
+    function _getProof(uint256[] memory data, uint256 node)
+        internal
+        pure
+        returns (
+            bytes32[] memory result,
+            ErrorsAndWarnings memory errorsAndWarnings
+        )
     {
-        require(data.length > 1, "won't generate proof for single leaf");
+        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
+
+        if (data.length < 2) {
+            errorsAndWarnings.addError(MerkleIssue.SingleLeaf.parseInt());
+            return (new bytes32[](0), errorsAndWarnings);
+        }
+
         bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
-        processInput(data);
+        if (_processInput(data) == false) {
+            errorsAndWarnings.addError(MerkleIssue.Unsorted.parseInt());
+            return (new bytes32[](0), errorsAndWarnings);
+        }
 
         // The size of the proof is equal to the ceiling of log2(numLeaves)
         // Two overflow risks: node, pos
@@ -289,7 +316,13 @@ contract Murky {
     /**
      * Hashes each element of the input array in place using keccak256
      */
-    function processInput(bytes32[] memory data) public pure {
+    function _processInput(uint256[] memory data)
+        private
+        pure
+        returns (bool sorted)
+    {
+        sorted = true;
+
         // Hash inputs with keccak256
         for (uint256 i = 0; i < data.length; ++i) {
             assembly {
@@ -307,7 +340,7 @@ contract Murky {
                         )
                     )
                 ) {
-                    revert(0, 0) // Elements not ordered by hash
+                    sorted := 0 // Elements not ordered by hash
                 }
             }
         }
@@ -319,9 +352,9 @@ contract Murky {
         bytes32 hash;
     }
 
-    function sortUint256ByHash(uint256[] memory values)
-        public
-        view
+    function _sortUint256ByHash(uint256[] memory values)
+        internal
+        pure
         returns (uint256[] memory sortedValues)
     {
         HashAndIntTuple[] memory toSort = new HashAndIntTuple[](values.length);
@@ -332,7 +365,7 @@ contract Murky {
             );
         }
 
-        quickSort(toSort, 0, int256(toSort.length - 1));
+        _quickSort(toSort, 0, int256(toSort.length - 1));
 
         sortedValues = new uint256[](values.length);
         for (uint256 i = 0; i < values.length; i++) {
@@ -340,11 +373,11 @@ contract Murky {
         }
     }
 
-    function quickSort(
+    function _quickSort(
         HashAndIntTuple[] memory arr,
         int256 left,
         int256 right
-    ) internal view {
+    ) internal pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
@@ -361,7 +394,7 @@ contract Murky {
                 j--;
             }
         }
-        if (left < j) quickSort(arr, left, j);
-        if (i < right) quickSort(arr, i, right);
+        if (left < j) _quickSort(arr, left, j);
+        if (i < right) _quickSort(arr, i, right);
     }
 }

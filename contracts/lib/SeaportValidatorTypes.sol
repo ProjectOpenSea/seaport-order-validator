@@ -2,9 +2,13 @@
 pragma solidity ^0.8.10;
 
 struct ValidationConfiguration {
+    /// @notice Recipient for protocol fee payments.
     address protocolFeeRecipient;
+    /// @notice Bips for protocol fee payments.
     uint256 protocolFeeBips;
+    /// @notice Should royalty fees be checked?
     bool checkRoyaltyFee;
+    /// @notice Should strict validation be skipped?
     bool skipStrictValidation;
 }
 
@@ -103,6 +107,16 @@ enum GenericIssue {
     InvalidOrderFormat
 }
 
+enum MerkleIssue {
+    SingleLeaf,
+    Unsorted
+}
+
+/**
+ * @title IssueParser - parse issues into integers
+ * @notice Implements a `parseInt` function for each issue type.
+ *    offsets the enum value to place within the issue range.
+ */
 library IssueParser {
     function parseInt(GenericIssue err) internal pure returns (uint16) {
         return uint16(err) + 100;
@@ -158,5 +172,9 @@ library IssueParser {
 
     function parseInt(ZoneIssue err) internal pure returns (uint16) {
         return uint16(err) + 1400;
+    }
+
+    function parseInt(MerkleIssue err) internal pure returns (uint16) {
+        return uint16(err) + 1500;
     }
 }

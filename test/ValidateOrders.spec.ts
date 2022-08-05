@@ -13,6 +13,7 @@ import {
   ERC721Issue,
   GenericIssue,
   ItemType,
+  MerkleIssue,
   NULL_ADDRESS,
   NativeIssue,
   OPENSEA_CONDUIT_ADDRESS,
@@ -67,13 +68,11 @@ describe("Validate Orders", function () {
     const [owner, ...otherAccounts] = await ethers.getSigners();
 
     const Validator = await ethers.getContractFactory("SeaportValidator");
-    const MurkyFactory = await ethers.getContractFactory("Murky");
     const TestERC721Factory = await ethers.getContractFactory("TestERC721");
     const TestERC1155Factory = await ethers.getContractFactory("TestERC1155");
     const TestERC20Factory = await ethers.getContractFactory("TestERC20");
 
-    const murky = await MurkyFactory.deploy(false);
-    const validator = await Validator.deploy(murky.address);
+    const validator = await Validator.deploy();
 
     const erc721_1 = await TestERC721Factory.deploy("NFT1", "NFT1");
     const erc721_2 = await TestERC721Factory.deploy("NFT2", "NFT2");
@@ -1491,7 +1490,16 @@ describe("Validate Orders", function () {
 
       const res = await validator.getMerkleProof(input, 8);
       expect(res.errorsAndWarnings).to.include.deep.ordered.members([
-        [GenericIssue.MerkleError],
+        [MerkleIssue.Unsorted],
+        [],
+      ]);
+    });
+
+    it("Create proof: 1 leaf", async function () {
+      const input = [2];
+      const res = await validator.getMerkleProof(input, 0);
+      expect(res.errorsAndWarnings).to.include.deep.ordered.members([
+        [MerkleIssue.SingleLeaf],
         [],
       ]);
     });
@@ -1502,7 +1510,16 @@ describe("Validate Orders", function () {
       const res = await validator.getMerkleRoot(input);
       expect(res.merkleRoot).to.equal(EMPTY_BYTES32);
       expect(res.errorsAndWarnings).to.include.deep.ordered.members([
-        [GenericIssue.MerkleError],
+        [MerkleIssue.Unsorted],
+        [],
+      ]);
+    });
+
+    it("Create root: 1 leaf", async function () {
+      const input = [2];
+      const res = await validator.getMerkleRoot(input);
+      expect(res.errorsAndWarnings).to.include.deep.ordered.members([
+        [MerkleIssue.SingleLeaf],
         [],
       ]);
     });

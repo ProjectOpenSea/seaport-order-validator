@@ -54,22 +54,24 @@ import { SignatureVerification } from "./SignatureVerification.sol";
  * @title SeaportValidator
  * @notice SeaportValidator provides advanced validation to seaport orders.
  */
-contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
+contract SeaportValidator is
+    ConsiderationTypeHashes,
+    SignatureVerification,
+    Murky
+{
     using ErrorsAndWarningsLib for ErrorsAndWarnings;
     using SafeStaticCall for address;
     using IssueParser for *;
 
+    /// @notice Crosschain seaport address
     ConsiderationInterface public constant seaport =
         ConsiderationInterface(0x00000000006c3852cbEf3e08E8dF289169EdE581);
+    /// @notice Crosschain conduit controller Address
     ConduitControllerInterface public constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
+    /// @notice Ethereum royalty engine address
     RoyaltyEngineInterface public constant royaltyEngine =
         RoyaltyEngineInterface(0x0385603ab55642cb4Dd5De3aE9e306809991804f);
-    Murky public immutable murky;
-
-    constructor(Murky murky_) {
-        murky = murky_;
-    }
 
     /**
      * @notice Conduct a comprehensive validation of the given order.
@@ -1138,10 +1140,10 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
      */
     function sortMerkleTokens(uint256[] memory includedTokens)
         public
-        view
+        pure
         returns (uint256[] memory sortedTokens)
     {
-        return murky.sortUint256ByHash(includedTokens);
+        return _sortUint256ByHash(includedTokens);
     }
 
     /**
@@ -1152,20 +1154,10 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
      */
     function getMerkleRoot(uint256[] memory includedTokens)
         public
-        view
+        pure
         returns (bytes32 merkleRoot, ErrorsAndWarnings memory errorsAndWarnings)
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
-
-        (bool success, bytes memory res) = address(murky).staticcall(
-            abi.encodeWithSelector(murky.getRoot.selector, includedTokens)
-        );
-        if (!success) {
-            errorsAndWarnings.addError(GenericIssue.MerkleError.parseInt());
-            return (0, errorsAndWarnings);
-        }
-
-        return (abi.decode(res, (bytes32)), errorsAndWarnings);
+        (merkleRoot, errorsAndWarnings) = _getRoot(includedTokens);
     }
 
     /**
@@ -1180,44 +1172,25 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         uint256 targetIndex
     )
         public
-        view
+        pure
         returns (
             bytes32[] memory merkleProof,
             ErrorsAndWarnings memory errorsAndWarnings
         )
     {
-        errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
-
-        (bool success, bytes memory res) = address(murky).staticcall(
-            abi.encodeWithSelector(
-                murky.getProof.selector,
-                includedTokens,
-                targetIndex
-            )
+        (merkleProof, errorsAndWarnings) = _getProof(
+            includedTokens,
+            targetIndex
         );
-        if (!success) {
-            errorsAndWarnings.addError(GenericIssue.MerkleError.parseInt());
-            return (new bytes32[](0), errorsAndWarnings);
-        }
-
-        return (abi.decode(res, (bytes32[])), errorsAndWarnings);
     }
 
     function verifyMerkleProof(
         bytes32 merkleRoot,
         bytes32[] memory merkleProof,
         uint256 valueToProve
-    ) public view returns (bool) {
+    ) public pure returns (bool) {
         bytes32 hashedValue = keccak256(abi.encode(valueToProve));
-        return
-            address(murky).safeStaticCallBool(
-                abi.encodeWithSelector(
-                    murky.verifyProof.selector,
-                    merkleRoot,
-                    merkleProof,
-                    hashedValue
-                ),
-                true
-            );
+
+        return _verifyProof(merkleRoot, merkleProof, hashedValue);
     }
 }

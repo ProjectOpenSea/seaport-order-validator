@@ -186,3 +186,8 @@ export enum GenericIssue {
   MerkleError,
   InvalidOrderFormat,
 }
+
+export enum MerkleIssue {
+  SingleLeaf = 1500,
+  Unsorted,
+}
