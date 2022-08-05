@@ -25,7 +25,8 @@ enum OfferIssue {
     ZeroItems,
     AmountZero,
     MoreThanOneItem,
-    NativeItem
+    NativeItem,
+    DuplicateItem
 }
 
 enum ConsiderationIssue {

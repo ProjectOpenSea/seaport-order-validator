@@ -318,6 +318,24 @@ contract SeaportValidator is ConsiderationTypeHashes, SignatureVerification {
         if (orderParameters.offer.length > 1) {
             errorsAndWarnings.addWarning(OfferIssue.MoreThanOneItem.parseInt());
         }
+
+        for (uint256 i = 0; i < orderParameters.offer.length; i++) {
+            OfferItem memory offerItem1 = orderParameters.offer[i];
+
+            for (uint256 j = i + 1; j < orderParameters.offer.length; j++) {
+                OfferItem memory offerItem2 = orderParameters.offer[j];
+
+                if (
+                    offerItem1.token == offerItem2.token &&
+                    offerItem1.identifierOrCriteria ==
+                    offerItem2.identifierOrCriteria
+                ) {
+                    errorsAndWarnings.addError(
+                        OfferIssue.DuplicateItem.parseInt()
+                    );
+                }
+            }
+        }
     }
 
     /**

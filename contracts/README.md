@@ -28,6 +28,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 601 | Offer amount must not be zero |
 | 602 | More than one offer item |
 | 603 | Native offer item |
+| 604 | Duplicate offer item |
 | 700 | Protocol fee missing |
 | 701 | Protocol fee item type incorrect |
 | 702 | Protocol fee token incorrect |

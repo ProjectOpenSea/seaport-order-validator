@@ -110,6 +110,7 @@ export enum OfferIssue {
   AmountZero,
   MoreThanOneItem,
   NativeItem,
+  DuplicateItem,
 }
 
 export enum ConsiderationIssue {

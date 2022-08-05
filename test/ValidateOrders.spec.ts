@@ -197,7 +197,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[OfferIssue.ZeroItems], []]);
     });
 
-    it("more than one offer items", async function () {
+    it("duplicate offer items", async function () {
       await erc20_1.mint(owner.address, "4");
       await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, "4");
 
@@ -215,6 +215,37 @@ describe("Validate Orders", function () {
           identifierOrCriteria: "0",
           startAmount: "2",
           endAmount: "2",
+        },
+      ];
+
+      expect(
+        await validator.validateOfferItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [OfferIssue.DuplicateItem],
+        [OfferIssue.MoreThanOneItem],
+      ]);
+    });
+
+    it("more than one offer items", async function () {
+      await erc20_1.mint(owner.address, "4");
+      await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, "4");
+      await erc721_1.mint(owner.address, "4");
+      await erc721_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, "4");
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1",
+          endAmount: "1",
+        },
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "4",
+          startAmount: "1",
+          endAmount: "1",
         },
       ];
 
