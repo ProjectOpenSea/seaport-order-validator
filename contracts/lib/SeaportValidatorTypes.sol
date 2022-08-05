@@ -103,7 +103,6 @@ enum SignatureIssue {
 
 enum GenericIssue {
     InvalidItemType,
-    MerkleError,
     InvalidOrderFormat
 }
 

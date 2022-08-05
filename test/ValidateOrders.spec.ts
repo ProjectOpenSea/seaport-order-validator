@@ -225,6 +225,25 @@ describe("Validate Orders", function () {
       ]);
     });
 
+    it("invalid conduit key", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc20_1.address,
+          identifierOrCriteria: "2",
+          startAmount: "1",
+          endAmount: "1",
+        },
+      ];
+      baseOrderParameters.conduitKey = "0x1" + "0".repeat(63);
+      expect(
+        await validator.validateOfferItemApprovalAndBalance(
+          baseOrderParameters,
+          0
+        )
+      ).to.include.deep.ordered.members([[ConduitIssue.KeyInvalid], []]);
+    });
+
     it("more than one offer items", async function () {
       await erc20_1.mint(owner.address, "4");
       await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, "4");
@@ -2685,8 +2704,8 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([
         [
           OfferIssue.ZeroItems,
-          GenericIssue.InvalidOrderFormat,
           SignatureIssue.Invalid,
+          GenericIssue.InvalidOrderFormat,
         ],
         [],
       ]);

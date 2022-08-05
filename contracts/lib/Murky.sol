@@ -72,7 +72,7 @@ contract Murky {
 
         bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
-        if (_processInput(data) == false) {
+        if (!_processInput(data)) {
             errorsAndWarnings.addError(MerkleIssue.Unsorted.parseInt());
             return (0, errorsAndWarnings);
         }
@@ -176,7 +176,7 @@ contract Murky {
 
         bool hashOddWithZero = HASH_ODD_WITH_ZERO;
 
-        if (_processInput(data) == false) {
+        if (!_processInput(data)) {
             errorsAndWarnings.addError(MerkleIssue.Unsorted.parseInt());
             return (new bytes32[](0), errorsAndWarnings);
         }

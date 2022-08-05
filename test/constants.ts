@@ -183,7 +183,6 @@ export enum SignatureIssue {
 
 export enum GenericIssue {
   InvalidItemType = 100,
-  MerkleError,
   InvalidOrderFormat,
 }
 

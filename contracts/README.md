@@ -5,8 +5,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | Code | Issue |
 | - | ----------- |
 | 100 | Invalid item type |
-| 101 | Merkle error |
-| 102 | Invalid order format. Ensure offer/consideration follow requirements |
+| 101 | Invalid order format. Ensure offer/consideration follow requirements |
 | 200 | ERC20 identifier must be zero |
 | 201 | ERC20 invalid token |
 | 202 | ERC20 insufficient allowance to conduit |
@@ -57,3 +56,5 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 1301 | Native token identifier must be zero |
 | 1302 | Native token insufficient balance |
 | 1400 | Zone rejected order |
+| 1500 | Merkle input only has one leaf |
+| 1501 | Merkle input not sorted correctly |
