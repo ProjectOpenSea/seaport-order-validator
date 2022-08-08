@@ -17,7 +17,7 @@ import type {
   SeaportValidator,
   TestERC1155,
   TestERC721,
-  TestZone,
+  TestERC721Funky,
 } from "../typechain-types";
 import type { OrderComponentsStruct } from "../typechain-types/contracts/interfaces/ConsiderationInterface";
 import type {
@@ -39,6 +39,7 @@ describe("Validate Orders (Arbitrum)", function () {
   let erc721_2: TestERC721;
   let erc1155_1: TestERC1155;
   let erc20_1: TestERC20;
+  let erc721_funky: TestERC721Funky;
 
   before(async function () {
     seaport = await ethers.getContractAt(
@@ -54,6 +55,9 @@ describe("Validate Orders (Arbitrum)", function () {
     const TestERC721Factory = await ethers.getContractFactory("TestERC721");
     const TestERC1155Factory = await ethers.getContractFactory("TestERC1155");
     const TestERC20Factory = await ethers.getContractFactory("TestERC20");
+    const TestERC721FunkyFactory = await ethers.getContractFactory(
+      "TestERC721Funky"
+    );
 
     const validator = await Validator.deploy();
 
@@ -61,6 +65,7 @@ describe("Validate Orders (Arbitrum)", function () {
     const erc721_2 = await TestERC721Factory.deploy("NFT2", "NFT2");
     const erc1155_1 = await TestERC1155Factory.deploy("uri_here");
     const erc20_1 = await TestERC20Factory.deploy("ERC20", "ERC20");
+    const erc721_funky = await TestERC721FunkyFactory.deploy("NFT3", "NFT3");
 
     return {
       validator,
@@ -70,6 +75,7 @@ describe("Validate Orders (Arbitrum)", function () {
       erc721_2,
       erc1155_1,
       erc20_1,
+      erc721_funky,
     };
   }
 
@@ -82,6 +88,7 @@ describe("Validate Orders (Arbitrum)", function () {
     erc721_2 = res.erc721_2;
     erc1155_1 = res.erc1155_1;
     erc20_1 = res.erc20_1;
+    erc721_funky = res.erc721_funky;
 
     baseOrderParameters = {
       offerer: owner.address,
@@ -176,7 +183,38 @@ describe("Validate Orders (Arbitrum)", function () {
           identifierOrCriteria: "0",
           startAmount: "25",
           endAmount: "25",
-          recipient: feeRecipient,
+          recipient: "0x000000000000000000000000000000000000FEE2",
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          "0",
+          true
+        )
+      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
+    });
+
+    it("Check royalties returns unexpected value", async function () {
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "1000",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_funky.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
         },
         {
           itemType: ItemType.ERC20,
@@ -191,11 +229,53 @@ describe("Validate Orders (Arbitrum)", function () {
       expect(
         await validator.validateStrictLogic(
           baseOrderParameters,
-          feeRecipient,
-          "250",
+          NULL_ADDRESS,
+          "0",
           true
         )
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
+    });
+
+    it("Check royalties second reverts", async function () {
+      await erc721_1.setRoyaltyFeeEnabled(true);
+      await erc721_1.setMinTransactionPrice("10");
+
+      baseOrderParameters.offer = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "1000",
+          endAmount: "0",
+        },
+      ];
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC721,
+          token: erc721_1.address,
+          identifierOrCriteria: "1",
+          startAmount: "1",
+          endAmount: "1",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "25",
+          endAmount: "0",
+          recipient: "0x000000000000000000000000000000000000FEE2",
+        },
+      ];
+
+      expect(
+        await validator.validateStrictLogic(
+          baseOrderParameters,
+          NULL_ADDRESS,
+          "0",
+          true
+        )
+      ).to.include.deep.ordered.members([[], []]);
     });
   });
 
