@@ -758,6 +758,34 @@ describe("Validate Orders", function () {
         .be.reverted;
     });
 
+    it("Duplicate consideration item", async function () {
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "0",
+          endAmount: "100",
+          recipient: owner.address,
+        },
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "100",
+          endAmount: "0",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateConsiderationItems(baseOrderParameters)
+      ).to.include.deep.ordered.members([
+        [],
+        [ConsiderationIssue.DuplicateItem],
+      ]);
+    });
+
     describe("ERC721", function () {
       it("ERC721 consideration not one", async function () {
         await erc721_1.mint(otherAccounts[0].address, 2);
@@ -1876,7 +1904,7 @@ describe("Validate Orders", function () {
     });
 
     describe("Royalty Fee", function () {
-      it("success: with protocol fee", async function () {
+      it("success: with protocol fee (royalty engine)", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -1910,6 +1938,53 @@ describe("Validate Orders", function () {
             startAmount: "25",
             endAmount: "25",
             recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
+          },
+        ];
+
+        expect(
+          await validator.validateStrictLogic(
+            baseOrderParameters,
+            feeRecipient,
+            "250",
+            true
+          )
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("success: with protocol fee (2981)", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "1000",
+            endAmount: "1000",
+          },
+        ];
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC721,
+            token: "0x23581767a106ae21c074b2276D25e5C3e136a68b",
+            identifierOrCriteria: "1",
+            startAmount: "1",
+            endAmount: "1",
+            recipient: owner.address,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "25",
+            endAmount: "25",
+            recipient: feeRecipient,
+          },
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "50",
+            endAmount: "50",
+            recipient: "0xc8A5592031f93dEbeA5D9e67a396944Ee01BB2ca", // Moonbird fee recipient
           },
         ];
 

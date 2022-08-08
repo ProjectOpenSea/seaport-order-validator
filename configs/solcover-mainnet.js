@@ -5,6 +5,7 @@ module.exports = {
     "test/TestERC20.sol",
     "test/TestZone.sol",
     "test/TestERC1271.sol",
+    "test/TestERC721Funky.sol",
     "lib/ConsiderationTypeHashes.sol",
     "lib/ConsiderationStructs.sol",
     "lib/ConsiderationEnums.sol",
@@ -17,4 +18,6 @@ module.exports = {
       stackAllocation: true,
     },
   },
+  istanbulReporter: ["lcov"],
+  istanbulFolder: "./coverage-mainnet",
 };

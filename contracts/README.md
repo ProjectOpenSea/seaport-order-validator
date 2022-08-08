@@ -23,6 +23,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 502 | Consideration contains extra items |
 | 503 | Private sale can not be to self |
 | 504 | Zero consideration items |
+| 505 | Duplicate consideration items |
 | 600 | Zero offer items |
 | 601 | Offer amount must not be zero |
 | 602 | More than one offer item |

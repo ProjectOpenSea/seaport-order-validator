@@ -1,6 +1,6 @@
 name: Test CI
 
-on: 
+on:
   push:
     branches:
       - main
@@ -10,6 +10,7 @@ on:
 
 env:
   ETH_RPC: ${{ secrets.ETH_RPC }}
+  INFURA_KEY: ${{ secrets.INFURA_KEY }}
 
 concurrency:
   group: ${{github.workflow}}-${{github.ref}}
@@ -30,7 +31,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          cache: "yarn"
       - run: yarn install --frozen-lockfile
       - run: yarn build
 
@@ -48,7 +49,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          cache: "yarn"
       - run: yarn install --frozen-lockfile
       - run: yarn lint:check
 
@@ -66,7 +67,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          cache: "yarn"
       - run: yarn install --frozen-lockfile
       - run: yarn test
 
@@ -84,9 +85,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          cache: "yarn"
       - run: yarn install --frozen-lockfile
       - run: yarn coverage
-      - uses: codecov/codecov-action@v3
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
         with:
-          files: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
