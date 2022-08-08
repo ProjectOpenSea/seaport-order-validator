@@ -1073,6 +1073,7 @@ contract SeaportValidator is
 
         // Check royalty fee
         {
+            // Royalty engine may revert if no royalty fees are present.
             try
                 royaltyEngine.getRoyaltyView(
                     assetAddress,
@@ -1084,6 +1085,7 @@ contract SeaportValidator is
                 uint256[] memory royaltyAmountsStart
             ) {
                 if (royaltyRecipients.length != 0) {
+                    // Use first recipient and amount
                     royaltyFeeConsideration.recipient = royaltyRecipients[0];
                     royaltyFeeConsideration.startAmount = royaltyAmountsStart[
                         0
@@ -1093,7 +1095,9 @@ contract SeaportValidator is
                 // Royalty not found
             }
 
+            // If fees found for start amount, check end amount
             if (royaltyFeeConsideration.recipient != address(0)) {
+                // Royalty engine may revert if no royalty fees are present.
                 try
                     royaltyEngine.getRoyaltyView(
                         assetAddress,
@@ -1104,19 +1108,23 @@ contract SeaportValidator is
                     address payable[] memory,
                     uint256[] memory royaltyAmountsEnd
                 ) {
+                    // Use first amount
                     royaltyFeeConsideration.endAmount = royaltyAmountsEnd[0];
                 } catch {}
             }
         }
 
+        // Flag indicating if royalty fee is present in considerations
         bool royaltyFeePresent = false;
 
+        // Determine if should check for royalty fee
         if (
             royaltyFeeConsideration.recipient != address(0) &&
             checkRoyaltyFee &&
             (royaltyFeeConsideration.startAmount > 0 ||
                 royaltyFeeConsideration.endAmount > 0)
         ) {
+            // Calculate index of royalty fee consideration item
             uint16 royaltyConsiderationIndex = protocolFeePresent ? 2 : 1; // 2 if protocol fee, ow 1
 
             // Check that royalty consideration item exists
@@ -1132,13 +1140,16 @@ contract SeaportValidator is
                 .consideration[royaltyConsiderationIndex];
             royaltyFeePresent = true;
 
+            // Check type
             if (royaltyFeeItem.itemType != royaltyFeeConsideration.itemType) {
                 errorsAndWarnings.addError(RoyaltyFeeIssue.ItemType.parseInt());
                 return (0, errorsAndWarnings);
             }
+            // Check token
             if (royaltyFeeItem.token != royaltyFeeConsideration.token) {
                 errorsAndWarnings.addError(RoyaltyFeeIssue.Token.parseInt());
             }
+            // Check start amount
             if (
                 royaltyFeeItem.startAmount < royaltyFeeConsideration.startAmount
             ) {
@@ -1146,11 +1157,13 @@ contract SeaportValidator is
                     RoyaltyFeeIssue.StartAmount.parseInt()
                 );
             }
+            // Check end amount
             if (royaltyFeeItem.endAmount < royaltyFeeConsideration.endAmount) {
                 errorsAndWarnings.addError(
                     RoyaltyFeeIssue.EndAmount.parseInt()
                 );
             }
+            // Check recipient
             if (royaltyFeeItem.recipient != royaltyFeeConsideration.recipient) {
                 errorsAndWarnings.addError(
                     RoyaltyFeeIssue.Recipient.parseInt()
@@ -1158,13 +1171,17 @@ contract SeaportValidator is
             }
         }
 
-        // Check additional consideration items
+        // Calculate index of first tertiary consideration item
         tertiaryConsiderationIndex =
             1 +
             (protocolFeePresent ? 1 : 0) +
             (royaltyFeePresent ? 1 : 0);
     }
 
+    /**
+     * @notice Internal function for validating all consideration items after the fee items.
+     *    Only additional acceptable consideration is private sale.
+     */
     function _validateTertiaryConsiderationItems(
         OrderParameters memory orderParameters,
         uint256 considerationItemIndex
@@ -1172,13 +1189,14 @@ contract SeaportValidator is
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (orderParameters.consideration.length <= considerationItemIndex) {
-            // Not a private sale
+            // No more consideration items
             return errorsAndWarnings;
         }
 
         ConsiderationItem memory privateSaleConsideration = orderParameters
             .consideration[considerationItemIndex];
 
+        // Check if offer is payment token. Private sale not possible if so.
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
             errorsAndWarnings.addError(
                 ConsiderationIssue.ExtraItems.parseInt()
@@ -1186,6 +1204,7 @@ contract SeaportValidator is
             return errorsAndWarnings;
         }
 
+        // Check if private sale to self
         if (privateSaleConsideration.recipient == orderParameters.offerer) {
             errorsAndWarnings.addError(
                 ConsiderationIssue.PrivateSaleToSelf.parseInt()
@@ -1193,6 +1212,7 @@ contract SeaportValidator is
             return errorsAndWarnings;
         }
 
+        // Ensure that private sale parameters match offer item.
         if (
             privateSaleConsideration.itemType !=
             orderParameters.offer[0].itemType ||
@@ -1211,6 +1231,7 @@ contract SeaportValidator is
             return errorsAndWarnings;
         }
 
+        // Should not be any additional consideration items
         if (orderParameters.consideration.length - 1 > considerationItemIndex) {
             // Extra consideration items
             errorsAndWarnings.addError(
@@ -1232,21 +1253,24 @@ contract SeaportValidator is
     {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
+        // EOA zone is always valid
         if (address(orderParameters.zone).code.length == 0) {
             // Address is EOA. Valid order
             return errorsAndWarnings;
         }
 
+        // Get counter to derive order hash
         uint256 currentOffererCounter = seaport.getCounter(
             orderParameters.offerer
         );
 
+        // Call zone function `isValidOrder` with `msg.sender` as the caller
         if (
             !orderParameters.zone.safeStaticCallBytes4(
                 abi.encodeWithSelector(
                     ZoneInterface.isValidOrder.selector,
                     _deriveOrderHash(orderParameters, currentOffererCounter),
-                    msg.sender, /* who should be caller? */
+                    msg.sender,
                     orderParameters.offerer,
                     orderParameters.zoneHash
                 ),
@@ -1296,6 +1320,7 @@ contract SeaportValidator is
         pure
         returns (uint256[] memory sortedTokens)
     {
+        // Sort token ids by the keccak256 hash of the id
         return _sortUint256ByHash(includedTokens);
     }
 
