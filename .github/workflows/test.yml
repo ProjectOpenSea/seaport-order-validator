@@ -88,6 +88,7 @@ jobs:
           cache: "yarn"
       - run: yarn install --frozen-lockfile
       - run: yarn coverage
-      - uses: codecov/codecov-action@v3
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
         with:
-          files: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
