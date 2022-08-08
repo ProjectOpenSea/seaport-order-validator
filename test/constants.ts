@@ -119,6 +119,7 @@ export enum ConsiderationIssue {
   ExtraItems,
   PrivateSaleToSelf,
   ZeroItems,
+  DuplicateItem,
 }
 
 export enum ProtocolFeeIssue {

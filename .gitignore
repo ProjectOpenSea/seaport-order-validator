@@ -11,3 +11,5 @@ artifacts
 
 yarn-error.log
 .vscode/
+coverage-arbitrum
+coverage-mainnet

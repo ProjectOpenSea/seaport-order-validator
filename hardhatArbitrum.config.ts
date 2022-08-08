@@ -20,10 +20,12 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
-      chainId: 1,
+      chainId: 42161,
       forking: {
         enabled: true,
-        url: "https://mainnet.infura.io/v3/" + (process.env.INFURA_KEY ?? ""),
+        url:
+          "https://arbitrum-mainnet.infura.io/v3/" +
+          (process.env.INFURA_KEY ?? ""),
       },
     },
   },

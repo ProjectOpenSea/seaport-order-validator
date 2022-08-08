@@ -17,4 +17,6 @@ module.exports = {
       stackAllocation: true,
     },
   },
+  istanbulReporter: ["lcov"],
+  istanbulFolder: "./coverage-arbitrum",
 };

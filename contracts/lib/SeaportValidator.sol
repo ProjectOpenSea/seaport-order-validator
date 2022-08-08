@@ -21,6 +21,7 @@ import { IERC721 } from "@openzeppelin/contracts/interfaces/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import { IERC2981 } from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {
     ErrorsAndWarnings,
     ErrorsAndWarningsLib
@@ -378,21 +379,8 @@ contract SeaportValidator is
         // Iterate over each offer item and validate it
         for (uint256 i = 0; i < orderParameters.offer.length; i++) {
             errorsAndWarnings.concat(validateOfferItem(orderParameters, i));
-        }
 
-        // You must have an offer item
-        if (orderParameters.offer.length == 0) {
-            errorsAndWarnings.addError(OfferIssue.ZeroItems.parseInt());
-        }
-
-        // Warning if there is more than one offer item
-        if (orderParameters.offer.length > 1) {
-            errorsAndWarnings.addWarning(OfferIssue.MoreThanOneItem.parseInt());
-        }
-
-        // Check for duplicate offer items
-        for (uint256 i = 0; i < orderParameters.offer.length; i++) {
-            // Iterate over each offer item
+            // Check for duplicate offer item
             OfferItem memory offerItem1 = orderParameters.offer[i];
 
             for (uint256 j = i + 1; j < orderParameters.offer.length; j++) {
@@ -411,6 +399,16 @@ contract SeaportValidator is
                     );
                 }
             }
+        }
+
+        // You must have an offer item
+        if (orderParameters.offer.length == 0) {
+            errorsAndWarnings.addError(OfferIssue.ZeroItems.parseInt());
+        }
+
+        // Warning if there is more than one offer item
+        if (orderParameters.offer.length > 1) {
+            errorsAndWarnings.addWarning(OfferIssue.MoreThanOneItem.parseInt());
         }
     }
 
@@ -705,10 +703,42 @@ contract SeaportValidator is
             return errorsAndWarnings;
         }
 
+        // Iterate over each consideration item
         for (uint256 i = 0; i < orderParameters.consideration.length; i++) {
+            // Validate consideration item
             errorsAndWarnings.concat(
                 validateConsiderationItem(orderParameters, i)
             );
+
+            ConsiderationItem memory considerationItem1 = orderParameters
+                .consideration[i];
+
+            for (
+                uint256 j = i + 1;
+                j < orderParameters.consideration.length;
+                j++
+            ) {
+                // Iterate over each remaining offer item
+                // (previous items already check with this item)
+
+                ConsiderationItem memory considerationItem2 = orderParameters
+                    .consideration[j];
+
+                // Check if itemType, token, id, and recipient are the same
+                if (
+                    considerationItem2.itemType ==
+                    considerationItem1.itemType &&
+                    considerationItem2.token == considerationItem1.token &&
+                    considerationItem2.identifierOrCriteria ==
+                    considerationItem1.identifierOrCriteria &&
+                    considerationItem2.recipient == considerationItem1.recipient
+                ) {
+                    errorsAndWarnings.addWarning(
+                        // Duplicate consideration item, warning
+                        ConsiderationIssue.DuplicateItem.parseInt()
+                    );
+                }
+            }
         }
     }
 
@@ -1072,47 +1102,16 @@ contract SeaportValidator is
         }
 
         // Check royalty fee
-        {
-            // Royalty engine may revert if no royalty fees are present.
-            try
-                royaltyEngine.getRoyaltyView(
-                    assetAddress,
-                    assetIdentifier,
-                    transactionAmountStart
-                )
-            returns (
-                address payable[] memory royaltyRecipients,
-                uint256[] memory royaltyAmountsStart
-            ) {
-                if (royaltyRecipients.length != 0) {
-                    // Use first recipient and amount
-                    royaltyFeeConsideration.recipient = royaltyRecipients[0];
-                    royaltyFeeConsideration.startAmount = royaltyAmountsStart[
-                        0
-                    ];
-                }
-            } catch {
-                // Royalty not found
-            }
-
-            // If fees found for start amount, check end amount
-            if (royaltyFeeConsideration.recipient != address(0)) {
-                // Royalty engine may revert if no royalty fees are present.
-                try
-                    royaltyEngine.getRoyaltyView(
-                        assetAddress,
-                        assetIdentifier,
-                        transactionAmountEnd
-                    )
-                returns (
-                    address payable[] memory,
-                    uint256[] memory royaltyAmountsEnd
-                ) {
-                    // Use first amount
-                    royaltyFeeConsideration.endAmount = royaltyAmountsEnd[0];
-                } catch {}
-            }
-        }
+        (
+            royaltyFeeConsideration.recipient,
+            royaltyFeeConsideration.startAmount,
+            royaltyFeeConsideration.endAmount
+        ) = getRoyaltyInfo(
+            assetAddress,
+            assetIdentifier,
+            transactionAmountStart,
+            transactionAmountEnd
+        );
 
         // Flag indicating if royalty fee is present in considerations
         bool royaltyFeePresent = false;
@@ -1176,6 +1175,107 @@ contract SeaportValidator is
             1 +
             (protocolFeePresent ? 1 : 0) +
             (royaltyFeePresent ? 1 : 0);
+    }
+
+    function getRoyaltyInfo(
+        address token,
+        uint256 tokenId,
+        uint256 transactionAmountStart,
+        uint256 transactionAmountEnd
+    )
+        public
+        view
+        returns (
+            address payable recipient,
+            uint256 royaltyAmountStart,
+            uint256 royaltyAmountEnd
+        )
+    {
+        // Check if royalty engine is on this chain
+        if (address(royaltyEngine) != address(0)) {
+            // Royalty engine may revert if no royalty fees are present.
+            try
+                royaltyEngine.getRoyaltyView(
+                    token,
+                    tokenId,
+                    transactionAmountStart
+                )
+            returns (
+                address payable[] memory royaltyRecipients,
+                uint256[] memory royaltyAmountsStart
+            ) {
+                if (royaltyRecipients.length != 0) {
+                    // Use first recipient and amount
+                    recipient = royaltyRecipients[0];
+                    royaltyAmountStart = royaltyAmountsStart[0];
+                }
+            } catch {
+                // Royalty not found
+            }
+
+            // If fees found for start amount, check end amount
+            if (recipient != address(0)) {
+                // Royalty engine may revert if no royalty fees are present.
+                try
+                    royaltyEngine.getRoyaltyView(
+                        token,
+                        tokenId,
+                        transactionAmountEnd
+                    )
+                returns (
+                    address payable[] memory,
+                    uint256[] memory royaltyAmountsEnd
+                ) {
+                    royaltyAmountEnd = royaltyAmountsEnd[0];
+                } catch {}
+            }
+        } else {
+            // Fallback to ERC2981
+            {
+                // Static call to token using ERC2981
+                (bool success, bytes memory res) = token.staticcall(
+                    abi.encodeWithSelector(
+                        IERC2981.royaltyInfo.selector,
+                        tokenId,
+                        transactionAmountStart
+                    )
+                );
+                // Check if call succeeded
+                if (success) {
+                    // Ensure 64 bytes returned
+                    if (res.length == 64) {
+                        // Decode result and assign recipient and start amount
+                        (recipient, royaltyAmountStart) = abi.decode(
+                            res,
+                            (address, uint256)
+                        );
+                    }
+                }
+            }
+
+            // Only check end amount if start amount found
+            if (recipient != address(0)) {
+                // Static call to token using ERC2981
+                (bool success, bytes memory res) = token.staticcall(
+                    abi.encodeWithSelector(
+                        IERC2981.royaltyInfo.selector,
+                        tokenId,
+                        transactionAmountEnd
+                    )
+                );
+                // Check if call succeeded
+                if (success) {
+                    // Ensure 64 bytes returned
+                    if (res.length == 64) {
+                        // Decode result and assign end amount
+                        (, royaltyAmountEnd) = abi.decode(
+                            res,
+                            (address, uint256)
+                        );
+                    }
+                }
+            }
+        }
     }
 
     /**

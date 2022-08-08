@@ -38,7 +38,8 @@ enum ConsiderationIssue {
     NullRecipient,
     ExtraItems,
     PrivateSaleToSelf,
-    ZeroItems
+    ZeroItems,
+    DuplicateItem
 }
 
 enum ProtocolFeeIssue {

@@ -7,9 +7,9 @@
     "hardhat": "^2.10.1"
   },
   "scripts": {
-    "test": "hardhat compile && hardhat test",
+    "test": "hardhat compile && hardhat test 'test/ValidateOrders.spec.ts' && hardhat test 'test/ValidateOrderArbitrum.spec.ts' --config hardhatArbitrum.config.ts",
     "profile": "REPORT_GAS=true yarn test",
-    "coverage": "hardhat compile && hardhat coverage",
+    "coverage": "hardhat compile && hardhat coverage  --testfiles 'test/ValidateOrders.spec.ts' --solcoverjs ./configs/solcover-mainnet.js && hardhat coverage  --testfiles 'test/ValidateOrderArbitrum.spec.ts' --config hardhatArbitrum.config.ts --solcoverjs ./configs/solcover-arbitrum.js && mkdir -p coverage && ./node_modules/.bin/lcov-result-merger 'coverage-*/lcov.info' 'coverage/lcov.info'",
     "prepare": "husky install",
     "build": "hardhat clean && hardhat compile",
     "lint:fix": "prettier --write **.{sol,js,ts} && eslint --fix . --ext js,ts",
@@ -43,6 +43,7 @@
     "ethers": "^5.4.7",
     "hardhat-gas-reporter": "^1.0.8",
     "husky": "^8.0.1",
+    "lcov-result-merger": "^3.3.0",
     "lint-staged": "^13.0.3",
     "prettier-plugin-solidity": "^1.0.0-dev.22",
     "solidity-coverage": "^0.7.21",
