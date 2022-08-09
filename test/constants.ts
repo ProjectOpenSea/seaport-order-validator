@@ -138,6 +138,7 @@ export enum ERC721Issue {
   IdentifierDNE,
   NotOwner,
   NotApproved,
+  CriteriaNotPartialFill,
 }
 
 export enum ERC1155Issue {
@@ -184,8 +185,7 @@ export enum SignatureIssue {
 }
 
 export enum GenericIssue {
-  InvalidItemType = 100,
-  InvalidOrderFormat,
+  InvalidOrderFormat = 100,
 }
 
 export enum MerkleIssue {

@@ -140,7 +140,7 @@ contract SeaportValidator is
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
-        // Concatenates errorsAndWarnings with the returns errorsAndWarnings of `validateTime`
+        // Concatenates errorsAndWarnings with the returned errorsAndWarnings
         errorsAndWarnings.concat(validateTime(order.parameters));
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(validateOfferItems(order.parameters));
@@ -468,7 +468,24 @@ contract SeaportValidator is
             if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
                 errorsAndWarnings.addError(ERC721Issue.InvalidToken.parseInt());
             }
-        } else if (offerItem.itemType == ItemType.ERC1155) {
+        } else if (offerItem.itemType == ItemType.ERC721_WITH_CRITERIA) {
+            // Check the EIP165 token interface
+            if (!checkInterface(offerItem.token, type(IERC721).interfaceId)) {
+                errorsAndWarnings.addError(ERC721Issue.InvalidToken.parseInt());
+            }
+
+            if (offerItem.startAmount > 1 || offerItem.endAmount > 1) {
+                // Require partial fill enabled. Even orderTypes are full
+                if (uint8(orderParameters.orderType) % 2 == 0) {
+                    errorsAndWarnings.addError(
+                        ERC721Issue.CriteriaNotPartialFill.parseInt()
+                    );
+                }
+            }
+        } else if (
+            offerItem.itemType == ItemType.ERC1155 ||
+            offerItem.itemType == ItemType.ERC1155_WITH_CRITERIA
+        ) {
             // Check the EIP165 token interface
             if (!checkInterface(offerItem.token, type(IERC1155).interfaceId)) {
                 errorsAndWarnings.addError(
@@ -496,7 +513,8 @@ contract SeaportValidator is
             ) {
                 errorsAndWarnings.addError(ERC20Issue.InvalidToken.parseInt());
             }
-        } else if (offerItem.itemType == ItemType.NATIVE) {
+        } else {
+            // Must be native
             // NATIVE must have `token` be zero address
             if (offerItem.token != address(0)) {
                 errorsAndWarnings.addError(NativeIssue.TokenAddress.parseInt());
@@ -508,9 +526,6 @@ contract SeaportValidator is
                     NativeIssue.IdentifierNonZero.parseInt()
                 );
             }
-        } else {
-            // Unsupported offer item type
-            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
@@ -586,7 +601,9 @@ contract SeaportValidator is
                     );
                 }
             }
-        } else if (offerItem.itemType == ItemType.ERC1155) {
+        } else if (
+            offerItem.itemType == ItemType.ERC721_WITH_CRITERIA
+        ) {} else if (offerItem.itemType == ItemType.ERC1155) {
             IERC1155 token = IERC1155(offerItem.token);
 
             // Check for approval
@@ -624,7 +641,9 @@ contract SeaportValidator is
                     ERC1155Issue.InsufficientBalance.parseInt()
                 );
             }
-        } else if (offerItem.itemType == ItemType.ERC20) {
+        } else if (
+            offerItem.itemType == ItemType.ERC1155_WITH_CRITERIA
+        ) {} else if (offerItem.itemType == ItemType.ERC20) {
             IERC20 token = IERC20(offerItem.token);
 
             // Get min required balance and approval (max(startAmount, endAmount))
@@ -663,7 +682,8 @@ contract SeaportValidator is
                     ERC20Issue.InsufficientBalance.parseInt()
                 );
             }
-        } else if (offerItem.itemType == ItemType.NATIVE) {
+        } else {
+            // Must be native
             // Get min required balance (max(startAmount, endAmount))
             uint256 minBalance = offerItem.startAmount < offerItem.endAmount
                 ? offerItem.startAmount
@@ -678,9 +698,6 @@ contract SeaportValidator is
 
             // Native items can not be pulled so warn
             errorsAndWarnings.addWarning(OfferIssue.NativeItem.parseInt());
-        } else {
-            // Unsupported offer item type
-            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
@@ -880,7 +897,8 @@ contract SeaportValidator is
                 // Not an ERC20 token
                 errorsAndWarnings.addError(ERC20Issue.InvalidToken.parseInt());
             }
-        } else if (considerationItem.itemType == ItemType.NATIVE) {
+        } else {
+            // Must be native
             // NATIVE must have `token` be zero address
             if (considerationItem.token != address(0)) {
                 errorsAndWarnings.addError(NativeIssue.TokenAddress.parseInt());
@@ -891,9 +909,6 @@ contract SeaportValidator is
                     NativeIssue.IdentifierNonZero.parseInt()
                 );
             }
-        } else {
-            // Unsupported consideration item type
-            errorsAndWarnings.addError(GenericIssue.InvalidItemType.parseInt());
         }
     }
 
