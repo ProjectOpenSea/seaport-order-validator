@@ -111,6 +111,7 @@ export enum OfferIssue {
   MoreThanOneItem,
   NativeItem,
   DuplicateItem,
+  AmountVelocityHigh,
 }
 
 export enum ConsiderationIssue {
@@ -121,6 +122,7 @@ export enum ConsiderationIssue {
   ZeroItems,
   DuplicateItem,
   PrivateSale,
+  AmountVelocityHigh,
 }
 
 export enum PrimaryFeeIssue {

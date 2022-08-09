@@ -456,6 +456,44 @@ contract SeaportValidator is
         // Check if start amount and end amount are zero
         if (offerItem.startAmount == 0 && offerItem.endAmount == 0) {
             errorsAndWarnings.addError(OfferIssue.AmountZero.parseInt());
+            return errorsAndWarnings;
+        }
+
+        // Check that amount velocity is not too high.
+        if (
+            offerItem.startAmount != offerItem.endAmount &&
+            orderParameters.endTime > orderParameters.startTime
+        ) {
+            // Assign larger and smaller amount values
+            (uint256 largerAmount, uint256 smallerAmount) = offerItem
+                .startAmount > offerItem.endAmount
+                ? (offerItem.startAmount, offerItem.endAmount)
+                : (offerItem.endAmount, offerItem.startAmount);
+
+            uint256 amountDelta = largerAmount - smallerAmount;
+            // delta of time that order exists for
+            uint256 timeDelta = orderParameters.endTime -
+                orderParameters.startTime;
+
+            // Velocity scaled by 1e10 for precision
+            uint256 velocity = (amountDelta * 1e10) / timeDelta;
+            // gives velocity percentage in hundredth of a basis points per second in terms of larger value
+            uint256 velocityPercentage = velocity / (largerAmount * 1e4);
+
+            // 278 * 60 * 30 ~= 500,000
+            if (velocityPercentage > 278) {
+                // Over 50% change per 30 min
+                errorsAndWarnings.addError(
+                    OfferIssue.AmountVelocityHigh.parseInt()
+                );
+            }
+            // Over 50% change per 30 min
+            else if (velocityPercentage > 28) {
+                // Over 5% change per 30 min
+                errorsAndWarnings.addWarning(
+                    OfferIssue.AmountVelocityHigh.parseInt()
+                );
+            }
         }
 
         if (offerItem.itemType == ItemType.ERC721) {
@@ -802,6 +840,7 @@ contract SeaportValidator is
             errorsAndWarnings.addError(
                 ConsiderationIssue.AmountZero.parseInt()
             );
+            return errorsAndWarnings;
         }
 
         // Check if the recipient is the null address
@@ -809,6 +848,43 @@ contract SeaportValidator is
             errorsAndWarnings.addError(
                 ConsiderationIssue.NullRecipient.parseInt()
             );
+        }
+
+        // Check that amount velocity is not too high.
+        if (
+            considerationItem.startAmount != considerationItem.endAmount &&
+            orderParameters.endTime > orderParameters.startTime
+        ) {
+            // Assign larger and smaller amount values
+            (uint256 largerAmount, uint256 smallerAmount) = considerationItem
+                .startAmount > considerationItem.endAmount
+                ? (considerationItem.startAmount, considerationItem.endAmount)
+                : (considerationItem.endAmount, considerationItem.startAmount);
+
+            uint256 amountDelta = largerAmount - smallerAmount;
+            // delta of time that order exists for
+            uint256 timeDelta = orderParameters.endTime -
+                orderParameters.startTime;
+
+            // Velocity scaled by 1e10 for precision
+            uint256 velocity = (amountDelta * 1e10) / timeDelta;
+            // gives velocity percentage in hundredth of a basis points per second in terms of larger value
+            uint256 velocityPercentage = velocity / (largerAmount * 1e4);
+
+            // 278 * 60 * 30 ~= 500,000
+            if (velocityPercentage > 278) {
+                // Over 50% change per 30 min
+                errorsAndWarnings.addError(
+                    ConsiderationIssue.AmountVelocityHigh.parseInt()
+                );
+            }
+            // 28 * 60 * 30 ~= 50,000
+            else if (velocityPercentage > 28) {
+                // Over 5% change per 30 min
+                errorsAndWarnings.addWarning(
+                    ConsiderationIssue.AmountVelocityHigh.parseInt()
+                );
+            }
         }
 
         if (considerationItem.itemType == ItemType.ERC721) {
