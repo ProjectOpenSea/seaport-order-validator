@@ -6,6 +6,7 @@ import {
   CROSS_CHAIN_SEAPORT_ADDRESS,
   ConduitIssue,
   ConsiderationIssue,
+  CreatorFeeIssue,
   EIP_712_ORDER_TYPE,
   EMPTY_BYTES32,
   ERC1155Issue,
@@ -20,8 +21,7 @@ import {
   OPENSEA_CONDUIT_KEY,
   OfferIssue,
   OrderType,
-  ProtocolFeeIssue,
-  RoyaltyFeeIssue,
+  PrimaryFeeIssue,
   SignatureIssue,
   StatusIssue,
   TimeIssue,
@@ -1292,7 +1292,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("private sale for a bid", async function () {
+    it("private sale for an offer", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC20,
@@ -1331,7 +1331,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("incorrect royalty fees setting", async function () {
+    it("incorrect creator fees setting", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC721,
@@ -1375,7 +1375,7 @@ describe("Validate Orders", function () {
           "250",
           true
         )
-      ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
+      ).to.include.deep.ordered.members([[CreatorFeeIssue.ItemType], []]);
     });
   });
 
@@ -1682,8 +1682,8 @@ describe("Validate Orders", function () {
   });
 
   describe("Fee", function () {
-    describe("Protocol Fee", function () {
-      it("success bid", async function () {
+    describe("Primary Fee", function () {
+      it("success offer", async function () {
         const feeRecipient = "0x0000000000000000000000000000000000000FEE";
         baseOrderParameters.offer = [
           {
@@ -1723,7 +1723,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("success ask", async function () {
+      it("success listing", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
@@ -1798,7 +1798,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Recipient], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.Recipient], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1816,7 +1816,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.StartAmount], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.StartAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1834,7 +1834,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.EndAmount], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.EndAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -1851,7 +1851,7 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Token], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.Token], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.NATIVE,
@@ -1868,10 +1868,10 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.ItemType], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.ItemType], []]);
       });
 
-      it("Protocol fee missing", async function () {
+      it("Primary fee missing", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,
@@ -1899,12 +1899,12 @@ describe("Validate Orders", function () {
             "250",
             true
           )
-        ).to.include.deep.ordered.members([[ProtocolFeeIssue.Missing], []]);
+        ).to.include.deep.ordered.members([[PrimaryFeeIssue.Missing], []]);
       });
     });
 
-    describe("Royalty Fee", function () {
-      it("success: with protocol fee (royalty engine)", async function () {
+    describe("Creator Fee", function () {
+      it("success: with primary fee (creator fee engine)", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -1951,7 +1951,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("success: with protocol fee (2981)", async function () {
+      it("success: with primary fee (2981)", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -1998,7 +1998,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("success: without protocol fee", async function () {
+      it("success: without primary fee", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -2037,7 +2037,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("missing royalty consideration item", async function () {
+      it("missing creator fee consideration item", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -2065,7 +2065,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Missing], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Missing], []]);
       });
 
       it("mismatch", async function () {
@@ -2104,7 +2104,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.StartAmount], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.StartAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2122,7 +2122,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.EndAmount], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.EndAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2140,7 +2140,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Token], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Token], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2158,7 +2158,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Recipient], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Recipient], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC721,
@@ -2175,7 +2175,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.ItemType], []]);
       });
     });
 
@@ -2247,7 +2247,7 @@ describe("Validate Orders", function () {
       ]);
     });
 
-    it("Fees uncheckable with required protocol fee", async function () {
+    it("Fees uncheckable with required primary fee", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC20,
@@ -2591,9 +2591,9 @@ describe("Validate Orders", function () {
       const order = await signOrder(baseOrderParameters, owner);
 
       const validationConfiguration: ValidationConfigurationStruct = {
-        protocolFeeRecipient: feeRecipient,
-        protocolFeeBips: 250,
-        checkRoyaltyFee: true,
+        primaryFeeRecipient: feeRecipient,
+        primaryFeeBips: 250,
+        checkCreatorFee: true,
         skipStrictValidation: false,
       };
 
@@ -2659,9 +2659,9 @@ describe("Validate Orders", function () {
       const order = await signOrder(baseOrderParameters, owner);
 
       const validationConfiguration: ValidationConfigurationStruct = {
-        protocolFeeRecipient: NULL_ADDRESS,
-        protocolFeeBips: 0,
-        checkRoyaltyFee: false,
+        primaryFeeRecipient: NULL_ADDRESS,
+        primaryFeeBips: 0,
+        checkCreatorFee: false,
         skipStrictValidation: true,
       };
 
@@ -2673,7 +2673,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[], [OfferIssue.MoreThanOneItem]]);
     });
 
-    it("No protocol fee when 0", async function () {
+    it("No primary fee when 0", async function () {
       await erc721_1.mint(otherAccounts[0].address, 1);
       await erc20_1.mint(owner.address, 1000);
       await erc20_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 1000);
@@ -2702,9 +2702,9 @@ describe("Validate Orders", function () {
       const order: OrderStruct = await signOrder(baseOrderParameters, owner);
 
       const validationConfiguration: ValidationConfigurationStruct = {
-        protocolFeeRecipient: feeRecipient,
-        protocolFeeBips: 250,
-        checkRoyaltyFee: true,
+        primaryFeeRecipient: feeRecipient,
+        primaryFeeBips: 250,
+        checkCreatorFee: true,
         skipStrictValidation: false,
       };
 

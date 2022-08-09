@@ -105,12 +105,12 @@ describe("Validate Orders (Arbitrum)", function () {
     };
   });
 
-  describe("Check Royalties", function () {
-    // We are checking royalties solely based on EIP2981 here
+  describe("Check Creator Fees", function () {
+    // We are checking creator fees solely based on EIP2981 here
 
-    it("Check royalties success", async function () {
-      // Enable royalties on token
-      await erc721_1.setRoyaltyFeeEnabled(true);
+    it("Check creator fees success", async function () {
+      // Enable creator fees on token
+      await erc721_1.setCreatorFeeEnabled(true);
 
       baseOrderParameters.offer = [
         {
@@ -158,7 +158,7 @@ describe("Validate Orders (Arbitrum)", function () {
       ).to.include.deep.ordered.members([[], []]);
     });
 
-    it("Check royalties reverts", async function () {
+    it("Check creator fees reverts", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC20,
@@ -197,7 +197,7 @@ describe("Validate Orders (Arbitrum)", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("Check royalties returns unexpected value", async function () {
+    it("Check creator fees returns unexpected value", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC20,
@@ -236,8 +236,8 @@ describe("Validate Orders (Arbitrum)", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("Check royalties second reverts", async function () {
-      await erc721_1.setRoyaltyFeeEnabled(true);
+    it("Check creator fees second reverts", async function () {
+      await erc721_1.setCreatorFeeEnabled(true);
       await erc721_1.setMinTransactionPrice("10");
 
       baseOrderParameters.offer = [

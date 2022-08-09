@@ -122,7 +122,7 @@ export enum ConsiderationIssue {
   DuplicateItem,
 }
 
-export enum ProtocolFeeIssue {
+export enum PrimaryFeeIssue {
   Missing = 700,
   ItemType,
   Token,
@@ -166,7 +166,7 @@ export enum ConduitIssue {
   KeyInvalid = 1000,
 }
 
-export enum RoyaltyFeeIssue {
+export enum CreatorFeeIssue {
   Missing = 1200,
   ItemType,
   Token,

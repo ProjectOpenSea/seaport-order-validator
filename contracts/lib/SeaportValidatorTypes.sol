@@ -2,12 +2,12 @@
 pragma solidity ^0.8.10;
 
 struct ValidationConfiguration {
-    /// @notice Recipient for protocol fee payments.
-    address protocolFeeRecipient;
-    /// @notice Bips for protocol fee payments.
-    uint256 protocolFeeBips;
-    /// @notice Should royalty fees be checked?
-    bool checkRoyaltyFee;
+    /// @notice Recipient for primary fee payments.
+    address primaryFeeRecipient;
+    /// @notice Bips for primary fee payments.
+    uint256 primaryFeeBips;
+    /// @notice Should creator fees be checked?
+    bool checkCreatorFee;
     /// @notice Should strict validation be skipped?
     bool skipStrictValidation;
 }
@@ -42,7 +42,7 @@ enum ConsiderationIssue {
     DuplicateItem
 }
 
-enum ProtocolFeeIssue {
+enum PrimaryFeeIssue {
     Missing,
     ItemType,
     Token,
@@ -86,7 +86,7 @@ enum ConduitIssue {
     KeyInvalid
 }
 
-enum RoyaltyFeeIssue {
+enum CreatorFeeIssue {
     Missing,
     ItemType,
     Token,
@@ -142,7 +142,7 @@ library IssueParser {
         return uint16(err) + 600;
     }
 
-    function parseInt(ProtocolFeeIssue err) internal pure returns (uint16) {
+    function parseInt(PrimaryFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 700;
     }
 
@@ -162,7 +162,7 @@ library IssueParser {
         return uint16(err) + 1100;
     }
 
-    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
+    function parseInt(CreatorFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1200;
     }
 

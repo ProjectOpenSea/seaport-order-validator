@@ -29,12 +29,12 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 602 | More than one offer item |
 | 603 | Native offer item |
 | 604 | Duplicate offer item |
-| 700 | Protocol fee missing |
-| 701 | Protocol fee item type incorrect |
-| 702 | Protocol fee token incorrect |
-| 703 | Protocol fee start amount too low |
-| 704 | Protocol fee end amount too low |
-| 705 | Protocol fee recipient incorrect |
+| 700 | Primary fee missing |
+| 701 | Primary fee item type incorrect |
+| 702 | Primary fee token incorrect |
+| 703 | Primary fee start amount too low |
+| 704 | Primary fee end amount too low |
+| 705 | Primary fee recipient incorrect |
 | 800 | Order cancelled |
 | 801 | Order fully filled |
 | 900 | End time is before start time |
@@ -47,12 +47,12 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 1101 | Signature counter below current counter |
 | 1102 | Signature counter more than two greater than current counter |
 | 1103 | Signature may be invalid since `totalOriginalConsiderationItems` is not set correctly |
-| 1200 | Royalty fee missing |
-| 1201 | Royalty fee item type incorrect |
-| 1202 | Royalty fee token incorrect |
-| 1203 | Royalty fee start amount too low |
-| 1204 | Royalty fee end amount too low |
-| 1205 | Royalty fee recipient incorrect |
+| 1200 | Creator fee missing |
+| 1201 | Creator fee item type incorrect |
+| 1202 | Creator fee token incorrect |
+| 1203 | Creator fee start amount too low |
+| 1204 | Creator fee end amount too low |
+| 1205 | Creator fee recipient incorrect |
 | 1300 | Native token address must be null address |
 | 1301 | Native token identifier must be zero |
 | 1302 | Native token insufficient balance |
