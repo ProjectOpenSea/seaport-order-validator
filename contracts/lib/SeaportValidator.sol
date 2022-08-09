@@ -106,7 +106,7 @@ contract SeaportValidator is
     /**
      * @notice Conduct a comprehensive validation of the given order.
      *    `isValidOrder` validates simple orders that adhere to a set of rules defined below:
-     *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
+     *    - The order is either a listing or an offer order (one NFT to buy or one NFT to sell).
      *    - The first consideration is the primary consideration.
      *    - The order pays up to two fees in the fungible token currency. First fee is primary fee, second is creator fee.
      *    - In private orders, the last consideration specifies a recipient for the offer item.
@@ -921,7 +921,7 @@ contract SeaportValidator is
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
-        // Check that order matches the required format (bid or ask)
+        // Check that order matches the required format (listing or offer)
         {
             bool canCheckFee = true;
             // Single offer item and at least one consideration
@@ -929,21 +929,21 @@ contract SeaportValidator is
                 orderParameters.offer.length != 1 ||
                 orderParameters.consideration.length == 0
             ) {
-                // Not bid or ask, can't check fees
+                // Not listing or offer, can't check fees
                 canCheckFee = false;
             } else if (
                 // Can't have both items be fungible
                 isPaymentToken(orderParameters.offer[0].itemType) &&
                 isPaymentToken(orderParameters.consideration[0].itemType)
             ) {
-                // Not bid or ask, can't check fees
+                // Not listing or offer, can't check fees
                 canCheckFee = false;
             } else if (
                 // Can't have both items be non-fungible
                 !isPaymentToken(orderParameters.offer[0].itemType) &&
                 !isPaymentToken(orderParameters.consideration[0].itemType)
             ) {
-                // Not bid or ask, can't check fees
+                // Not listing or offer, can't check fees
                 canCheckFee = false;
             }
             if (!canCheckFee) {
@@ -1008,7 +1008,7 @@ contract SeaportValidator is
         ConsiderationItem memory creatorFeeConsideration;
 
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
-            // Offer is a bid. oOffer item is fungible and used for fees
+            // Offer is an offer. oOffer item is fungible and used for fees
             creatorFeeConsideration.itemType = orderParameters
                 .offer[0]
                 .itemType;
@@ -1022,7 +1022,7 @@ contract SeaportValidator is
                 .consideration[0]
                 .identifierOrCriteria;
         } else {
-            // Offer is a bid. Consideration item is fungible and used for fees
+            // Offer is an offer. Consideration item is fungible and used for fees
             creatorFeeConsideration.itemType = orderParameters
                 .consideration[0]
                 .itemType;

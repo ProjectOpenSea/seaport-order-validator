@@ -1292,7 +1292,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("private sale for a bid", async function () {
+    it("private sale for an offer", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC20,
@@ -1683,7 +1683,7 @@ describe("Validate Orders", function () {
 
   describe("Fee", function () {
     describe("Primary Fee", function () {
-      it("success bid", async function () {
+      it("success offer", async function () {
         const feeRecipient = "0x0000000000000000000000000000000000000FEE";
         baseOrderParameters.offer = [
           {
@@ -1723,7 +1723,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("success ask", async function () {
+      it("success listing", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721,

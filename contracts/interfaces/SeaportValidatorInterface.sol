@@ -9,7 +9,7 @@ import { ValidationConfiguration } from "../lib/SeaportValidatorTypes.sol";
 /**
  * @title SeaportValidator
  * @notice SeaportValidator validates simple orders that adhere to a set of rules defined below:
- *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
+ *    - The order is either a listing or an offer order (one NFT to buy or one NFT to sell).
  *    - The first consideration is the primary consideration.
  *    - The order pays up to two fees in the fungible token currency. First fee is primary fee, second is creator fee.
  *    - In private orders, the last consideration specifies a recipient for the offer item.
