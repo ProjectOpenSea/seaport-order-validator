@@ -6,7 +6,7 @@ import { ERC2981 } from "@openzeppelin/contracts/token/common/ERC2981.sol";
 
 contract TestERC721 is ERC721, ERC2981 {
     /// @notice When set to false, `royaltyInfo` reverts
-    bool royaltyFeeEnabled = false;
+    bool creatorFeeEnabled = false;
     /// @notice Below the min transaction price, `royaltyInfo` reverts
     uint256 minTransactionPrice = 0;
 
@@ -39,8 +39,8 @@ contract TestERC721 is ERC721, ERC2981 {
         override
         returns (address, uint256)
     {
-        if (!royaltyFeeEnabled) {
-            revert("royalty fee disabled");
+        if (!creatorFeeEnabled) {
+            revert("creator fee disabled");
         }
         if (_salePrice < minTransactionPrice) {
             revert("sale price too low");
@@ -48,12 +48,12 @@ contract TestERC721 is ERC721, ERC2981 {
 
         return (
             0x000000000000000000000000000000000000fEE2,
-            (_salePrice * (royaltyFeeEnabled ? 250 : 0)) / 10000
+            (_salePrice * (creatorFeeEnabled ? 250 : 0)) / 10000
         ); // 2.5% fee to 0xFEE2
     }
 
-    function setRoyaltyFeeEnabled(bool enabled) public {
-        royaltyFeeEnabled = enabled;
+    function setCreatorFeeEnabled(bool enabled) public {
+        creatorFeeEnabled = enabled;
     }
 
     function setMinTransactionPrice(uint256 minTransactionPrice_) public {

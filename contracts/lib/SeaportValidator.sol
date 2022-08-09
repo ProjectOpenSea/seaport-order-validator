@@ -29,8 +29,8 @@ import {
 import { SafeStaticCall } from "./SafeStaticCall.sol";
 import { Murky } from "./Murky.sol";
 import {
-    RoyaltyEngineInterface
-} from "../interfaces/RoyaltyEngineInterface.sol";
+    CreatorFeeEngineInterface
+} from "../interfaces/CreatorFeeEngineInterface.sol";
 import {
     IssueParser,
     ValidationConfiguration,
@@ -45,7 +45,7 @@ import {
     NativeIssue,
     ZoneIssue,
     ConduitIssue,
-    RoyaltyFeeIssue,
+    CreatorFeeIssue,
     SignatureIssue,
     GenericIssue
 } from "./SeaportValidatorTypes.sol";
@@ -70,37 +70,37 @@ contract SeaportValidator is
     /// @notice Cross-chain conduit controller Address
     ConduitControllerInterface public constant conduitController =
         ConduitControllerInterface(0x00000000F9490004C11Cef243f5400493c00Ad63);
-    /// @notice Ethereum royalty engine address
-    RoyaltyEngineInterface public immutable royaltyEngine;
+    /// @notice Ethereum creator fee engine address
+    CreatorFeeEngineInterface public immutable creatorFeeEngine;
 
     constructor() {
-        address royaltyEngineAddress;
+        address creatorFeeEngineAddress;
         if (block.chainid == 1) {
-            royaltyEngineAddress = 0x0385603ab55642cb4Dd5De3aE9e306809991804f;
+            creatorFeeEngineAddress = 0x0385603ab55642cb4Dd5De3aE9e306809991804f;
         } else if (block.chainid == 3) {
             // Ropsten
-            royaltyEngineAddress = 0xFf5A6F7f36764aAD301B7C9E85A5277614Df5E26;
+            creatorFeeEngineAddress = 0xFf5A6F7f36764aAD301B7C9E85A5277614Df5E26;
         } else if (block.chainid == 4) {
             // Rinkeby
-            royaltyEngineAddress = 0x8d17687ea9a6bb6efA24ec11DcFab01661b2ddcd;
+            creatorFeeEngineAddress = 0x8d17687ea9a6bb6efA24ec11DcFab01661b2ddcd;
         } else if (block.chainid == 5) {
             // Goerli
-            royaltyEngineAddress = 0xe7c9Cb6D966f76f3B5142167088927Bf34966a1f;
+            creatorFeeEngineAddress = 0xe7c9Cb6D966f76f3B5142167088927Bf34966a1f;
         } else if (block.chainid == 42) {
             // Kovan
-            royaltyEngineAddress = 0x54D88324cBedfFe1e62c9A59eBb310A11C295198;
+            creatorFeeEngineAddress = 0x54D88324cBedfFe1e62c9A59eBb310A11C295198;
         } else if (block.chainid == 137) {
             // Polygon
-            royaltyEngineAddress = 0x28EdFcF0Be7E86b07493466e7631a213bDe8eEF2;
+            creatorFeeEngineAddress = 0x28EdFcF0Be7E86b07493466e7631a213bDe8eEF2;
         } else if (block.chainid == 80001) {
             // Mumbai
-            royaltyEngineAddress = 0x0a01E11887f727D1b1Cd81251eeEE9BEE4262D07;
+            creatorFeeEngineAddress = 0x0a01E11887f727D1b1Cd81251eeEE9BEE4262D07;
         } else {
-            // No royalty engine for this chain
-            royaltyEngineAddress = address(0);
+            // No creator fee engine for this chain
+            creatorFeeEngineAddress = address(0);
         }
 
-        royaltyEngine = RoyaltyEngineInterface(royaltyEngineAddress);
+        creatorFeeEngine = CreatorFeeEngineInterface(creatorFeeEngineAddress);
     }
 
     /**
@@ -108,7 +108,7 @@ contract SeaportValidator is
      *    `isValidOrder` validates simple orders that adhere to a set of rules defined below:
      *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
      *    - The first consideration is the primary consideration.
-     *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is royalty fee.
+     *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is creator fee.
      *    - In private orders, the last consideration specifies a recipient for the offer item.
      *    - Offer items must be owned and properly approved by the offerer.
      *    - There must be one offer item
@@ -155,7 +155,7 @@ contract SeaportValidator is
                     order.parameters,
                     validationConfiguration.protocolFeeRecipient,
                     validationConfiguration.protocolFeeBips,
-                    validationConfiguration.checkRoyaltyFee
+                    validationConfiguration.checkCreatorFee
                 )
             );
         }
@@ -899,25 +899,25 @@ contract SeaportValidator is
 
     /**
      * @notice Strict validation operates under tight assumptions. It validates protocol
-     *    fee, royalty fee, private sale consideration, and overall order format.
-     * @dev Only checks first fee recipient provided by RoyaltyEngine.
+     *    fee, creator fee, private sale consideration, and overall order format.
+     * @dev Only checks first fee recipient provided by CreatorFeeEngine.
      *    Order of consideration items must be as follows:
      *    1. Primary consideration
      *    2. Protocol fee
-     *    3. Royalty Fee
+     *    3. Creator Fee
      *    4. Private sale consideration
      * @param orderParameters The parameters for the order to validate.
      * @param protocolFeeRecipient The protocol fee recipient. Set to null address for no protocol fee.
      * @param protocolFeeBips The protocol fee in BIPs.
-     * @param checkRoyaltyFee Should check for royalty fee. If true, royalty fee must be present as
-     *    according to royalty engine. If false, must not have royalty fee.
+     * @param checkCreatorFee Should check for creator fee. If true, creator fee must be present as
+     *    according to creator fee engine. If false, must not have creator fee.
      * @return errorsAndWarnings The errors and warnings.
      */
     function validateStrictLogic(
         OrderParameters memory orderParameters,
         address protocolFeeRecipient,
         uint256 protocolFeeBips,
-        bool checkRoyaltyFee
+        bool checkCreatorFee
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
@@ -963,7 +963,7 @@ contract SeaportValidator is
                 orderParameters,
                 protocolFeeRecipient,
                 protocolFeeBips,
-                checkRoyaltyFee
+                checkCreatorFee
             );
 
         errorsAndWarnings.concat(errorsAndWarningsLocal);
@@ -984,7 +984,7 @@ contract SeaportValidator is
         OrderParameters memory orderParameters,
         address protocolFeeRecipient,
         uint256 protocolFeeBips,
-        bool checkRoyaltyFee
+        bool checkCreatorFee
     )
         internal
         view
@@ -1004,29 +1004,29 @@ contract SeaportValidator is
         // fungible item end amount
         uint256 transactionAmountEnd;
 
-        // Consideration item to hold expected royalty fee info
-        ConsiderationItem memory royaltyFeeConsideration;
+        // Consideration item to hold expected creator fee info
+        ConsiderationItem memory creatorFeeConsideration;
 
         if (isPaymentToken(orderParameters.offer[0].itemType)) {
             // Offer is a bid. oOffer item is fungible and used for fees
-            royaltyFeeConsideration.itemType = orderParameters
+            creatorFeeConsideration.itemType = orderParameters
                 .offer[0]
                 .itemType;
-            royaltyFeeConsideration.token = orderParameters.offer[0].token;
+            creatorFeeConsideration.token = orderParameters.offer[0].token;
             transactionAmountStart = orderParameters.offer[0].startAmount;
             transactionAmountEnd = orderParameters.offer[0].endAmount;
 
-            // Set non-fungible information for calculating royalties
+            // Set non-fungible information for calculating creator fee
             assetAddress = orderParameters.consideration[0].token;
             assetIdentifier = orderParameters
                 .consideration[0]
                 .identifierOrCriteria;
         } else {
             // Offer is a bid. Consideration item is fungible and used for fees
-            royaltyFeeConsideration.itemType = orderParameters
+            creatorFeeConsideration.itemType = orderParameters
                 .consideration[0]
                 .itemType;
-            royaltyFeeConsideration.token = orderParameters
+            creatorFeeConsideration.token = orderParameters
                 .consideration[0]
                 .token;
             transactionAmountStart = orderParameters
@@ -1034,7 +1034,7 @@ contract SeaportValidator is
                 .startAmount;
             transactionAmountEnd = orderParameters.consideration[0].endAmount;
 
-            // Set non-fungible information for calculating royalties
+            // Set non-fungible information for calculating creator fees
             assetAddress = orderParameters.offer[0].token;
             assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
         }
@@ -1067,7 +1067,7 @@ contract SeaportValidator is
 
                 // Check item type
                 if (
-                    protocolFeeItem.itemType != royaltyFeeConsideration.itemType
+                    protocolFeeItem.itemType != creatorFeeConsideration.itemType
                 ) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.ItemType.parseInt()
@@ -1075,7 +1075,7 @@ contract SeaportValidator is
                     return (0, errorsAndWarnings);
                 }
                 // Check token
-                if (protocolFeeItem.token != royaltyFeeConsideration.token) {
+                if (protocolFeeItem.token != creatorFeeConsideration.token) {
                     errorsAndWarnings.addError(
                         ProtocolFeeIssue.Token.parseInt()
                     );
@@ -1101,71 +1101,71 @@ contract SeaportValidator is
             }
         }
 
-        // Check royalty fee
+        // Check creator fee
         (
-            royaltyFeeConsideration.recipient,
-            royaltyFeeConsideration.startAmount,
-            royaltyFeeConsideration.endAmount
-        ) = getRoyaltyInfo(
+            creatorFeeConsideration.recipient,
+            creatorFeeConsideration.startAmount,
+            creatorFeeConsideration.endAmount
+        ) = getCreatorFeeInfo(
             assetAddress,
             assetIdentifier,
             transactionAmountStart,
             transactionAmountEnd
         );
 
-        // Flag indicating if royalty fee is present in considerations
-        bool royaltyFeePresent = false;
+        // Flag indicating if creator fee is present in considerations
+        bool creatorFeePresent = false;
 
-        // Determine if should check for royalty fee
+        // Determine if should check for creator fee
         if (
-            royaltyFeeConsideration.recipient != address(0) &&
-            checkRoyaltyFee &&
-            (royaltyFeeConsideration.startAmount > 0 ||
-                royaltyFeeConsideration.endAmount > 0)
+            creatorFeeConsideration.recipient != address(0) &&
+            checkCreatorFee &&
+            (creatorFeeConsideration.startAmount > 0 ||
+                creatorFeeConsideration.endAmount > 0)
         ) {
-            // Calculate index of royalty fee consideration item
-            uint16 royaltyConsiderationIndex = protocolFeePresent ? 2 : 1; // 2 if protocol fee, ow 1
+            // Calculate index of creator fee consideration item
+            uint16 creatorFeeConsiderationIndex = protocolFeePresent ? 2 : 1; // 2 if protocol fee, ow 1
 
-            // Check that royalty consideration item exists
+            // Check that creator fee consideration item exists
             if (
                 orderParameters.consideration.length - 1 <
-                royaltyConsiderationIndex
+                creatorFeeConsiderationIndex
             ) {
-                errorsAndWarnings.addError(RoyaltyFeeIssue.Missing.parseInt());
+                errorsAndWarnings.addError(CreatorFeeIssue.Missing.parseInt());
                 return (0, errorsAndWarnings);
             }
 
-            ConsiderationItem memory royaltyFeeItem = orderParameters
-                .consideration[royaltyConsiderationIndex];
-            royaltyFeePresent = true;
+            ConsiderationItem memory creatorFeeItem = orderParameters
+                .consideration[creatorFeeConsiderationIndex];
+            creatorFeePresent = true;
 
             // Check type
-            if (royaltyFeeItem.itemType != royaltyFeeConsideration.itemType) {
-                errorsAndWarnings.addError(RoyaltyFeeIssue.ItemType.parseInt());
+            if (creatorFeeItem.itemType != creatorFeeConsideration.itemType) {
+                errorsAndWarnings.addError(CreatorFeeIssue.ItemType.parseInt());
                 return (0, errorsAndWarnings);
             }
             // Check token
-            if (royaltyFeeItem.token != royaltyFeeConsideration.token) {
-                errorsAndWarnings.addError(RoyaltyFeeIssue.Token.parseInt());
+            if (creatorFeeItem.token != creatorFeeConsideration.token) {
+                errorsAndWarnings.addError(CreatorFeeIssue.Token.parseInt());
             }
             // Check start amount
             if (
-                royaltyFeeItem.startAmount < royaltyFeeConsideration.startAmount
+                creatorFeeItem.startAmount < creatorFeeConsideration.startAmount
             ) {
                 errorsAndWarnings.addError(
-                    RoyaltyFeeIssue.StartAmount.parseInt()
+                    CreatorFeeIssue.StartAmount.parseInt()
                 );
             }
             // Check end amount
-            if (royaltyFeeItem.endAmount < royaltyFeeConsideration.endAmount) {
+            if (creatorFeeItem.endAmount < creatorFeeConsideration.endAmount) {
                 errorsAndWarnings.addError(
-                    RoyaltyFeeIssue.EndAmount.parseInt()
+                    CreatorFeeIssue.EndAmount.parseInt()
                 );
             }
             // Check recipient
-            if (royaltyFeeItem.recipient != royaltyFeeConsideration.recipient) {
+            if (creatorFeeItem.recipient != creatorFeeConsideration.recipient) {
                 errorsAndWarnings.addError(
-                    RoyaltyFeeIssue.Recipient.parseInt()
+                    CreatorFeeIssue.Recipient.parseInt()
                 );
             }
         }
@@ -1174,10 +1174,10 @@ contract SeaportValidator is
         tertiaryConsiderationIndex =
             1 +
             (protocolFeePresent ? 1 : 0) +
-            (royaltyFeePresent ? 1 : 0);
+            (creatorFeePresent ? 1 : 0);
     }
 
-    function getRoyaltyInfo(
+    function getCreatorFeeInfo(
         address token,
         uint256 tokenId,
         uint256 transactionAmountStart,
@@ -1187,46 +1187,46 @@ contract SeaportValidator is
         view
         returns (
             address payable recipient,
-            uint256 royaltyAmountStart,
-            uint256 royaltyAmountEnd
+            uint256 creatorFeeAmountStart,
+            uint256 creatorFeeAmountEnd
         )
     {
-        // Check if royalty engine is on this chain
-        if (address(royaltyEngine) != address(0)) {
-            // Royalty engine may revert if no royalty fees are present.
+        // Check if creator fee engine is on this chain
+        if (address(creatorFeeEngine) != address(0)) {
+            // Creator fee engine may revert if no creator fees are present.
             try
-                royaltyEngine.getRoyaltyView(
+                creatorFeeEngine.getRoyaltyView(
                     token,
                     tokenId,
                     transactionAmountStart
                 )
             returns (
-                address payable[] memory royaltyRecipients,
-                uint256[] memory royaltyAmountsStart
+                address payable[] memory creatorFeeRecipients,
+                uint256[] memory creatorFeeAmountsStart
             ) {
-                if (royaltyRecipients.length != 0) {
+                if (creatorFeeRecipients.length != 0) {
                     // Use first recipient and amount
-                    recipient = royaltyRecipients[0];
-                    royaltyAmountStart = royaltyAmountsStart[0];
+                    recipient = creatorFeeRecipients[0];
+                    creatorFeeAmountStart = creatorFeeAmountsStart[0];
                 }
             } catch {
-                // Royalty not found
+                // Creator fee not found
             }
 
             // If fees found for start amount, check end amount
             if (recipient != address(0)) {
-                // Royalty engine may revert if no royalty fees are present.
+                // Creator fee engine may revert if no creator fees are present.
                 try
-                    royaltyEngine.getRoyaltyView(
+                    creatorFeeEngine.getRoyaltyView(
                         token,
                         tokenId,
                         transactionAmountEnd
                     )
                 returns (
                     address payable[] memory,
-                    uint256[] memory royaltyAmountsEnd
+                    uint256[] memory creatorFeeAmountsEnd
                 ) {
-                    royaltyAmountEnd = royaltyAmountsEnd[0];
+                    creatorFeeAmountEnd = creatorFeeAmountsEnd[0];
                 } catch {}
             }
         } else {
@@ -1245,7 +1245,7 @@ contract SeaportValidator is
                     // Ensure 64 bytes returned
                     if (res.length == 64) {
                         // Decode result and assign recipient and start amount
-                        (recipient, royaltyAmountStart) = abi.decode(
+                        (recipient, creatorFeeAmountStart) = abi.decode(
                             res,
                             (address, uint256)
                         );
@@ -1268,7 +1268,7 @@ contract SeaportValidator is
                     // Ensure 64 bytes returned
                     if (res.length == 64) {
                         // Decode result and assign end amount
-                        (, royaltyAmountEnd) = abi.decode(
+                        (, creatorFeeAmountEnd) = abi.decode(
                             res,
                             (address, uint256)
                         );

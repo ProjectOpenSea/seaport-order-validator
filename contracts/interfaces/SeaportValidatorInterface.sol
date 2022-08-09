@@ -11,7 +11,7 @@ import { ValidationConfiguration } from "../lib/SeaportValidatorTypes.sol";
  * @notice SeaportValidator validates simple orders that adhere to a set of rules defined below:
  *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
  *    - The first consideration is the primary consideration.
- *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is royalty fee.
+ *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is creator fee.
  *    - In private orders, the last consideration specifies a recipient for the offer item.
  *    - Offer items must be owned and properly approved by the offerer.
  *    - Consideration items must exist.
@@ -97,25 +97,25 @@ interface SeaportValidatorInterface {
 
     /**
      * @notice Strict validation operates under tight assumptions. It validates protocol
-     *    fee, royalty fee, private sale consideration, and overall order format.
-     * @dev Only checks first fee recipient provided by RoyaltyRegistry.
+     *    fee, creator fee, private sale consideration, and overall order format.
+     * @dev Only checks first fee recipient provided by CreatorFeeRegistry.
      *    Order of consideration items must be as follows:
      *    1. Primary consideration
      *    2. Protocol fee
-     *    3. Royalty Fee
+     *    3. Creator Fee
      *    4. Private sale consideration
      * @param orderParameters The parameters for the order to validate.
      * @param protocolFeeRecipient The protocol fee recipient. Set to null address for no protocol fee.
      * @param protocolFeeBips The protocol fee in BIPs.
-     * @param checkRoyaltyFee Should check for royalty fee. If true, royalty fee must be present as
-     *    according to royalty engine. If false, must not have royalty fee.
+     * @param checkCreatorFee Should check for creator fee. If true, creator fee must be present as
+     *    according to creator fee engine. If false, must not have creator fee.
      * @return errorsAndWarnings The errors and warnings.
      */
     function validateStrictLogic(
         OrderParameters memory orderParameters,
         address protocolFeeRecipient,
         uint256 protocolFeeBips,
-        bool checkRoyaltyFee
+        bool checkCreatorFee
     ) external view returns (ErrorsAndWarnings memory errorsAndWarnings);
 
     /**

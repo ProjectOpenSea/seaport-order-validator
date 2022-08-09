@@ -166,7 +166,7 @@ export enum ConduitIssue {
   KeyInvalid = 1000,
 }
 
-export enum RoyaltyFeeIssue {
+export enum CreatorFeeIssue {
   Missing = 1200,
   ItemType,
   Token,

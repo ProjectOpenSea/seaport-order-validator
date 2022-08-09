@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-interface RoyaltyEngineInterface {
+interface CreatorFeeEngineInterface {
     function getRoyaltyView(
         address tokenAddress,
         uint256 tokenId,

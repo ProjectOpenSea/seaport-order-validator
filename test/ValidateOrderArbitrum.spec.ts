@@ -110,7 +110,7 @@ describe("Validate Orders (Arbitrum)", function () {
 
     it("Check royalties success", async function () {
       // Enable royalties on token
-      await erc721_1.setRoyaltyFeeEnabled(true);
+      await erc721_1.setCreatorFeeEnabled(true);
 
       baseOrderParameters.offer = [
         {
@@ -237,7 +237,7 @@ describe("Validate Orders (Arbitrum)", function () {
     });
 
     it("Check royalties second reverts", async function () {
-      await erc721_1.setRoyaltyFeeEnabled(true);
+      await erc721_1.setCreatorFeeEnabled(true);
       await erc721_1.setMinTransactionPrice("10");
 
       baseOrderParameters.offer = [

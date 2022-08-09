@@ -21,7 +21,7 @@ import {
   OfferIssue,
   OrderType,
   ProtocolFeeIssue,
-  RoyaltyFeeIssue,
+  CreatorFeeIssue,
   SignatureIssue,
   StatusIssue,
   TimeIssue,
@@ -1331,7 +1331,7 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
     });
 
-    it("incorrect royalty fees setting", async function () {
+    it("incorrect creator fees setting", async function () {
       baseOrderParameters.offer = [
         {
           itemType: ItemType.ERC721,
@@ -1375,7 +1375,7 @@ describe("Validate Orders", function () {
           "250",
           true
         )
-      ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
+      ).to.include.deep.ordered.members([[CreatorFeeIssue.ItemType], []]);
     });
   });
 
@@ -1903,8 +1903,8 @@ describe("Validate Orders", function () {
       });
     });
 
-    describe("Royalty Fee", function () {
-      it("success: with protocol fee (royalty engine)", async function () {
+    describe("Creator Fee", function () {
+      it("success: with protocol fee (creatorFee engine)", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -2037,7 +2037,7 @@ describe("Validate Orders", function () {
         ).to.include.deep.ordered.members([[], []]);
       });
 
-      it("missing royalty consideration item", async function () {
+      it("missing creator fee consideration item", async function () {
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC20,
@@ -2065,7 +2065,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Missing], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Missing], []]);
       });
 
       it("mismatch", async function () {
@@ -2104,7 +2104,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.StartAmount], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.StartAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2122,7 +2122,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.EndAmount], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.EndAmount], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2140,7 +2140,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Token], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Token], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC20,
@@ -2158,7 +2158,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.Recipient], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.Recipient], []]);
 
         baseOrderParameters.consideration[1] = {
           itemType: ItemType.ERC721,
@@ -2175,7 +2175,7 @@ describe("Validate Orders", function () {
             "0",
             true
           )
-        ).to.include.deep.ordered.members([[RoyaltyFeeIssue.ItemType], []]);
+        ).to.include.deep.ordered.members([[CreatorFeeIssue.ItemType], []]);
       });
     });
 
@@ -2593,7 +2593,7 @@ describe("Validate Orders", function () {
       const validationConfiguration: ValidationConfigurationStruct = {
         protocolFeeRecipient: feeRecipient,
         protocolFeeBips: 250,
-        checkRoyaltyFee: true,
+        checkCreatorFee: true,
         skipStrictValidation: false,
       };
 
@@ -2661,7 +2661,7 @@ describe("Validate Orders", function () {
       const validationConfiguration: ValidationConfigurationStruct = {
         protocolFeeRecipient: NULL_ADDRESS,
         protocolFeeBips: 0,
-        checkRoyaltyFee: false,
+        checkCreatorFee: false,
         skipStrictValidation: true,
       };
 
@@ -2704,7 +2704,7 @@ describe("Validate Orders", function () {
       const validationConfiguration: ValidationConfigurationStruct = {
         protocolFeeRecipient: feeRecipient,
         protocolFeeBips: 250,
-        checkRoyaltyFee: true,
+        checkCreatorFee: true,
         skipStrictValidation: false,
       };
 

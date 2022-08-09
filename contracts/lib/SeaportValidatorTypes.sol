@@ -6,8 +6,8 @@ struct ValidationConfiguration {
     address protocolFeeRecipient;
     /// @notice Bips for protocol fee payments.
     uint256 protocolFeeBips;
-    /// @notice Should royalty fees be checked?
-    bool checkRoyaltyFee;
+    /// @notice Should creator fees be checked?
+    bool checkCreatorFee;
     /// @notice Should strict validation be skipped?
     bool skipStrictValidation;
 }
@@ -86,7 +86,7 @@ enum ConduitIssue {
     KeyInvalid
 }
 
-enum RoyaltyFeeIssue {
+enum CreatorFeeIssue {
     Missing,
     ItemType,
     Token,
@@ -162,7 +162,7 @@ library IssueParser {
         return uint16(err) + 1100;
     }
 
-    function parseInt(RoyaltyFeeIssue err) internal pure returns (uint16) {
+    function parseInt(CreatorFeeIssue err) internal pure returns (uint16) {
         return uint16(err) + 1200;
     }
 
