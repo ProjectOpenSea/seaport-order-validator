@@ -120,6 +120,7 @@ export enum ConsiderationIssue {
   PrivateSaleToSelf,
   ZeroItems,
   DuplicateItem,
+  PrivateSale,
 }
 
 export enum PrimaryFeeIssue {

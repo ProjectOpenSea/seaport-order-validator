@@ -1039,7 +1039,7 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([[], []]);
+      ).to.include.deep.ordered.members([[], [ConsiderationIssue.PrivateSale]]);
     });
 
     it("success with all fees", async function () {
@@ -1094,7 +1094,7 @@ describe("Validate Orders", function () {
           "250",
           true
         )
-      ).to.include.deep.ordered.members([[], []]);
+      ).to.include.deep.ordered.members([[], [ConsiderationIssue.PrivateSale]]);
     });
 
     it("Private sale extra consideration item", async function () {
@@ -1141,7 +1141,10 @@ describe("Validate Orders", function () {
           0,
           false
         )
-      ).to.include.deep.ordered.members([[ConsiderationIssue.ExtraItems], []]);
+      ).to.include.deep.ordered.members([
+        [ConsiderationIssue.ExtraItems],
+        [ConsiderationIssue.PrivateSale],
+      ]);
     });
 
     it("Private sale to self", async function () {

@@ -1331,6 +1331,8 @@ contract SeaportValidator is
             return errorsAndWarnings;
         }
 
+        errorsAndWarnings.addWarning(ConsiderationIssue.PrivateSale.parseInt());
+
         // Should not be any additional consideration items
         if (orderParameters.consideration.length - 1 > considerationItemIndex) {
             // Extra consideration items

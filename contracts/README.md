@@ -24,6 +24,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 503 | Private sale can not be to self |
 | 504 | Zero consideration items |
 | 505 | Duplicate consideration items |
+| 506 | Private Sale Order. Be careful on fulfillment |
 | 600 | Zero offer items |
 | 601 | Offer amount must not be zero |
 | 602 | More than one offer item |

@@ -39,7 +39,8 @@ enum ConsiderationIssue {
     ExtraItems,
     PrivateSaleToSelf,
     ZeroItems,
-    DuplicateItem
+    DuplicateItem,
+    PrivateSale
 }
 
 enum PrimaryFeeIssue {
