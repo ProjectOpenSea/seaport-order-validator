@@ -808,6 +808,62 @@ describe("Validate Orders", function () {
         ]);
       });
     });
+
+    describe("Velocity", function () {
+      it("Velocity > 5% && < 50%", async function () {
+        // 1 hour duration
+        baseOrderParameters.startTime = Math.round(
+          Date.now() / 1000 - 600
+        ).toString();
+        baseOrderParameters.endTime = Math.round(
+          Date.now() / 1000 + 3000
+        ).toString();
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "89000000000000000000", // 89e18
+            endAmount: "100000000000000000000", // 100e18
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItemParameters(baseOrderParameters, 0)
+        ).to.include.deep.ordered.members([
+          [],
+          [OfferIssue.AmountVelocityHigh],
+        ]);
+      });
+
+      it("Velocity > 50%", async function () {
+        // 30 min duration
+        baseOrderParameters.startTime = Math.round(
+          Date.now() / 1000 - 600
+        ).toString();
+        baseOrderParameters.endTime = Math.round(
+          Date.now() / 1000 + 1200
+        ).toString();
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "49000000000000000000", // 49e18
+            endAmount: "100000000000000000000", // 100e18
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItemParameters(baseOrderParameters, 0)
+        ).to.include.deep.ordered.members([
+          [OfferIssue.AmountVelocityHigh],
+          [],
+        ]);
+      });
+    });
   });
 
   describe("Validate Consideration Items", function () {
@@ -1108,6 +1164,70 @@ describe("Validate Orders", function () {
           await validator.validateConsiderationItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [NativeIssue.IdentifierNonZero],
+          [],
+        ]);
+      });
+    });
+
+    describe("Velocity", function () {
+      it("Velocity > 5% && < 50%", async function () {
+        // 1 hour duration
+        baseOrderParameters.startTime = Math.round(
+          Date.now() / 1000 - 600
+        ).toString();
+        baseOrderParameters.endTime = Math.round(
+          Date.now() / 1000 + 3000
+        ).toString();
+
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "89000000000000000000", // 89e18
+            endAmount: "100000000000000000000", // 100e18
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItemParameters(
+            baseOrderParameters,
+            0
+          )
+        ).to.include.deep.ordered.members([
+          [],
+          [ConsiderationIssue.AmountVelocityHigh],
+        ]);
+      });
+
+      it("Velocity > 50%", async function () {
+        // 30 min duration
+        baseOrderParameters.startTime = Math.round(
+          Date.now() / 1000 - 600
+        ).toString();
+        baseOrderParameters.endTime = Math.round(
+          Date.now() / 1000 + 1200
+        ).toString();
+
+        baseOrderParameters.consideration = [
+          {
+            itemType: ItemType.ERC20,
+            token: erc20_1.address,
+            identifierOrCriteria: "0",
+            startAmount: "49000000000000000000", // 49e18
+            endAmount: "100000000000000000000", // 100e18
+            recipient: owner.address,
+          },
+        ];
+
+        expect(
+          await validator.validateConsiderationItemParameters(
+            baseOrderParameters,
+            0
+          )
+        ).to.include.deep.ordered.members([
+          [ConsiderationIssue.AmountVelocityHigh],
           [],
         ]);
       });

@@ -460,7 +460,6 @@ contract SeaportValidator is
         }
 
         // Check that amount velocity is not too high.
-        // Warn if more than
         if (
             offerItem.startAmount != offerItem.endAmount &&
             orderParameters.endTime > orderParameters.startTime
@@ -489,7 +488,7 @@ contract SeaportValidator is
                 );
             }
             // Over 50% change per 30 min
-            if (velocityPercentage > 28) {
+            else if (velocityPercentage > 28) {
                 // Over 5% change per 30 min
                 errorsAndWarnings.addWarning(
                     OfferIssue.AmountVelocityHigh.parseInt()
