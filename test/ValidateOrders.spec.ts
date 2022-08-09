@@ -443,9 +443,6 @@ describe("Validate Orders", function () {
       });
 
       it("ERC721 Criteria offer", async function () {
-        await erc721_1.mint(owner.address, 2);
-        await erc721_1.approve(CROSS_CHAIN_SEAPORT_ADDRESS, 2);
-
         baseOrderParameters.offer = [
           {
             itemType: ItemType.ERC721_WITH_CRITERIA,
@@ -458,7 +455,74 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([[GenericIssue.InvalidItemType], []]);
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("ERC721 Criteria offer invalid token", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[ERC721Issue.InvalidToken], []]);
+      });
+
+      it("ERC721 Criteria offer multiple", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "2",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.CriteriaNotPartialFill],
+          [],
+        ]);
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "2",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.CriteriaNotPartialFill],
+          [],
+        ]);
+
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC721_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "2",
+            endAmount: "2",
+          },
+        ];
+        baseOrderParameters.orderType = OrderType.PARTIAL_OPEN;
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[], []]);
       });
     });
 
@@ -526,6 +590,54 @@ describe("Validate Orders", function () {
             endAmount: "1",
           },
         ];
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("ERC1155 Criteria offer", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC1155_WITH_CRITERIA,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[], []]);
+      });
+
+      it("ERC1155 Criteria offer invalid token", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC1155_WITH_CRITERIA,
+            token: erc721_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "1",
+            endAmount: "1",
+          },
+        ];
+
+        expect(
+          await validator.validateOfferItems(baseOrderParameters)
+        ).to.include.deep.ordered.members([[ERC1155Issue.InvalidToken], []]);
+      });
+
+      it("ERC1155 Criteria offer multiple", async function () {
+        baseOrderParameters.offer = [
+          {
+            itemType: ItemType.ERC1155_WITH_CRITERIA,
+            token: erc1155_1.address,
+            identifierOrCriteria: "2",
+            startAmount: "2",
+            endAmount: "1",
+          },
+        ];
+
         expect(
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([[], []]);

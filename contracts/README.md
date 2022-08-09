@@ -4,8 +4,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 ## Issue Codes
 | Code | Issue |
 | - | ----------- |
-| 100 | Invalid item type |
-| 101 | Invalid order format. Ensure offer/consideration follow requirements |
+| 100 | Invalid order format. Ensure offer/consideration follow requirements |
 | 200 | ERC20 identifier must be zero |
 | 201 | ERC20 invalid token |
 | 202 | ERC20 insufficient allowance to conduit |
@@ -15,6 +14,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 302 | ERC721 token with identifier does not exist |
 | 303 | ERC721 not owner of token |
 | 304 | ERC721 conduit not approved |
+| 305 | ERC721 offer item using criteria and more than amount of one requires partial fills. |
 | 400 | ERC1155 invalid token |
 | 401 | ERC1155 conduit not approved |
 | 402 | ERC1155 insufficient balance |

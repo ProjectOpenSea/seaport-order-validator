@@ -57,7 +57,8 @@ enum ERC721Issue {
     InvalidToken,
     IdentifierDNE,
     NotOwner,
-    NotApproved
+    NotApproved,
+    CriteriaNotPartialFill
 }
 
 enum ERC1155Issue {
@@ -104,7 +105,6 @@ enum SignatureIssue {
 }
 
 enum GenericIssue {
-    InvalidItemType,
     InvalidOrderFormat
 }
 
