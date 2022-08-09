@@ -30,7 +30,8 @@ enum OfferIssue {
     AmountZero,
     MoreThanOneItem,
     NativeItem,
-    DuplicateItem
+    DuplicateItem,
+    AmountVelocityHigh
 }
 
 enum ConsiderationIssue {
@@ -40,7 +41,8 @@ enum ConsiderationIssue {
     PrivateSaleToSelf,
     ZeroItems,
     DuplicateItem,
-    PrivateSale
+    PrivateSale,
+    AmountVelocityHigh
 }
 
 enum PrimaryFeeIssue {
