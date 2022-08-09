@@ -29,12 +29,12 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 602 | More than one offer item |
 | 603 | Native offer item |
 | 604 | Duplicate offer item |
-| 700 | Protocol fee missing |
-| 701 | Protocol fee item type incorrect |
-| 702 | Protocol fee token incorrect |
-| 703 | Protocol fee start amount too low |
-| 704 | Protocol fee end amount too low |
-| 705 | Protocol fee recipient incorrect |
+| 700 | Primary fee missing |
+| 701 | Primary fee item type incorrect |
+| 702 | Primary fee token incorrect |
+| 703 | Primary fee start amount too low |
+| 704 | Primary fee end amount too low |
+| 705 | Primary fee recipient incorrect |
 | 800 | Order cancelled |
 | 801 | Order fully filled |
 | 900 | End time is before start time |

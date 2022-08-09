@@ -122,7 +122,7 @@ export enum ConsiderationIssue {
   DuplicateItem,
 }
 
-export enum ProtocolFeeIssue {
+export enum PrimaryFeeIssue {
   Missing = 700,
   ItemType,
   Token,

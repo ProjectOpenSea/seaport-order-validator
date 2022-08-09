@@ -38,7 +38,7 @@ import {
     StatusIssue,
     OfferIssue,
     ConsiderationIssue,
-    ProtocolFeeIssue,
+    PrimaryFeeIssue,
     ERC721Issue,
     ERC1155Issue,
     ERC20Issue,
@@ -108,7 +108,7 @@ contract SeaportValidator is
      *    `isValidOrder` validates simple orders that adhere to a set of rules defined below:
      *    - The order is either a bid or an ask order (one NFT to buy or one NFT to sell).
      *    - The first consideration is the primary consideration.
-     *    - The order pays up to two fees in the fungible token currency. First fee is protocol fee, second is creator fee.
+     *    - The order pays up to two fees in the fungible token currency. First fee is primary fee, second is creator fee.
      *    - In private orders, the last consideration specifies a recipient for the offer item.
      *    - Offer items must be owned and properly approved by the offerer.
      *    - There must be one offer item
@@ -153,8 +153,8 @@ contract SeaportValidator is
             errorsAndWarnings.concat(
                 validateStrictLogic(
                     order.parameters,
-                    validationConfiguration.protocolFeeRecipient,
-                    validationConfiguration.protocolFeeBips,
+                    validationConfiguration.primaryFeeRecipient,
+                    validationConfiguration.primaryFeeBips,
                     validationConfiguration.checkCreatorFee
                 )
             );
@@ -898,25 +898,25 @@ contract SeaportValidator is
     }
 
     /**
-     * @notice Strict validation operates under tight assumptions. It validates protocol
+     * @notice Strict validation operates under tight assumptions. It validates primary
      *    fee, creator fee, private sale consideration, and overall order format.
      * @dev Only checks first fee recipient provided by CreatorFeeEngine.
      *    Order of consideration items must be as follows:
      *    1. Primary consideration
-     *    2. Protocol fee
+     *    2. Primary fee
      *    3. Creator Fee
      *    4. Private sale consideration
      * @param orderParameters The parameters for the order to validate.
-     * @param protocolFeeRecipient The protocol fee recipient. Set to null address for no protocol fee.
-     * @param protocolFeeBips The protocol fee in BIPs.
+     * @param primaryFeeRecipient The primary fee recipient. Set to null address for no primary fee.
+     * @param primaryFeeBips The primary fee in BIPs.
      * @param checkCreatorFee Should check for creator fee. If true, creator fee must be present as
      *    according to creator fee engine. If false, must not have creator fee.
      * @return errorsAndWarnings The errors and warnings.
      */
     function validateStrictLogic(
         OrderParameters memory orderParameters,
-        address protocolFeeRecipient,
-        uint256 protocolFeeBips,
+        address primaryFeeRecipient,
+        uint256 primaryFeeBips,
         bool checkCreatorFee
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
@@ -961,8 +961,8 @@ contract SeaportValidator is
             ErrorsAndWarnings memory errorsAndWarningsLocal
         ) = _validateSecondaryConsiderationItems(
                 orderParameters,
-                protocolFeeRecipient,
-                protocolFeeBips,
+                primaryFeeRecipient,
+                primaryFeeBips,
                 checkCreatorFee
             );
 
@@ -982,8 +982,8 @@ contract SeaportValidator is
 
     function _validateSecondaryConsiderationItems(
         OrderParameters memory orderParameters,
-        address protocolFeeRecipient,
-        uint256 protocolFeeBips,
+        address primaryFeeRecipient,
+        uint256 primaryFeeBips,
         bool checkCreatorFee
     )
         internal
@@ -996,9 +996,9 @@ contract SeaportValidator is
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         // non-fungible item address
-        address assetAddress;
+        address itemAddress;
         // non-fungible item identifier
-        uint256 assetIdentifier;
+        uint256 itemIdentifier;
         // fungible item start amount
         uint256 transactionAmountStart;
         // fungible item end amount
@@ -1017,8 +1017,8 @@ contract SeaportValidator is
             transactionAmountEnd = orderParameters.offer[0].endAmount;
 
             // Set non-fungible information for calculating creator fee
-            assetAddress = orderParameters.consideration[0].token;
-            assetIdentifier = orderParameters
+            itemAddress = orderParameters.consideration[0].token;
+            itemIdentifier = orderParameters
                 .consideration[0]
                 .identifierOrCriteria;
         } else {
@@ -1035,67 +1035,67 @@ contract SeaportValidator is
             transactionAmountEnd = orderParameters.consideration[0].endAmount;
 
             // Set non-fungible information for calculating creator fees
-            assetAddress = orderParameters.offer[0].token;
-            assetIdentifier = orderParameters.offer[0].identifierOrCriteria;
+            itemAddress = orderParameters.offer[0].token;
+            itemIdentifier = orderParameters.offer[0].identifierOrCriteria;
         }
 
-        // Store flag if protocol fee is present
-        bool protocolFeePresent = false;
+        // Store flag if primary fee is present
+        bool primaryFeePresent = false;
         {
-            // Calculate protocol fee start and end amounts
-            uint256 protocolFeeStartAmount = (transactionAmountStart *
-                protocolFeeBips) / 10000;
-            uint256 protocolFeeEndAmount = (transactionAmountEnd *
-                protocolFeeBips) / 10000;
+            // Calculate primary fee start and end amounts
+            uint256 primaryFeeStartAmount = (transactionAmountStart *
+                primaryFeeBips) / 10000;
+            uint256 primaryFeeEndAmount = (transactionAmountEnd *
+                primaryFeeBips) / 10000;
 
-            // Check if protocol fee check is desired. Skip if calculated amount is zero.
+            // Check if primary fee check is desired. Skip if calculated amount is zero.
             if (
-                protocolFeeRecipient != address(0) &&
-                (protocolFeeStartAmount > 0 || protocolFeeEndAmount > 0)
+                primaryFeeRecipient != address(0) &&
+                (primaryFeeStartAmount > 0 || primaryFeeEndAmount > 0)
             ) {
-                // Ensure protocol fee is present
+                // Ensure primary fee is present
                 if (orderParameters.consideration.length < 2) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.Missing.parseInt()
+                        PrimaryFeeIssue.Missing.parseInt()
                     );
                     return (0, errorsAndWarnings);
                 }
-                protocolFeePresent = true;
+                primaryFeePresent = true;
 
-                ConsiderationItem memory protocolFeeItem = orderParameters
+                ConsiderationItem memory primaryFeeItem = orderParameters
                     .consideration[1];
 
                 // Check item type
                 if (
-                    protocolFeeItem.itemType != creatorFeeConsideration.itemType
+                    primaryFeeItem.itemType != creatorFeeConsideration.itemType
                 ) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.ItemType.parseInt()
+                        PrimaryFeeIssue.ItemType.parseInt()
                     );
                     return (0, errorsAndWarnings);
                 }
                 // Check token
-                if (protocolFeeItem.token != creatorFeeConsideration.token) {
+                if (primaryFeeItem.token != creatorFeeConsideration.token) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.Token.parseInt()
+                        PrimaryFeeIssue.Token.parseInt()
                     );
                 }
                 // Check start amount
-                if (protocolFeeItem.startAmount < protocolFeeStartAmount) {
+                if (primaryFeeItem.startAmount < primaryFeeStartAmount) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.StartAmount.parseInt()
+                        PrimaryFeeIssue.StartAmount.parseInt()
                     );
                 }
                 // Check end amount
-                if (protocolFeeItem.endAmount < protocolFeeEndAmount) {
+                if (primaryFeeItem.endAmount < primaryFeeEndAmount) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.EndAmount.parseInt()
+                        PrimaryFeeIssue.EndAmount.parseInt()
                     );
                 }
                 // Check recipient
-                if (protocolFeeItem.recipient != protocolFeeRecipient) {
+                if (primaryFeeItem.recipient != primaryFeeRecipient) {
                     errorsAndWarnings.addError(
-                        ProtocolFeeIssue.Recipient.parseInt()
+                        PrimaryFeeIssue.Recipient.parseInt()
                     );
                 }
             }
@@ -1107,8 +1107,8 @@ contract SeaportValidator is
             creatorFeeConsideration.startAmount,
             creatorFeeConsideration.endAmount
         ) = getCreatorFeeInfo(
-            assetAddress,
-            assetIdentifier,
+            itemAddress,
+            itemIdentifier,
             transactionAmountStart,
             transactionAmountEnd
         );
@@ -1124,7 +1124,7 @@ contract SeaportValidator is
                 creatorFeeConsideration.endAmount > 0)
         ) {
             // Calculate index of creator fee consideration item
-            uint16 creatorFeeConsiderationIndex = protocolFeePresent ? 2 : 1; // 2 if protocol fee, ow 1
+            uint16 creatorFeeConsiderationIndex = primaryFeePresent ? 2 : 1; // 2 if primary fee, ow 1
 
             // Check that creator fee consideration item exists
             if (
@@ -1173,7 +1173,7 @@ contract SeaportValidator is
         // Calculate index of first tertiary consideration item
         tertiaryConsiderationIndex =
             1 +
-            (protocolFeePresent ? 1 : 0) +
+            (primaryFeePresent ? 1 : 0) +
             (creatorFeePresent ? 1 : 0);
     }
 
