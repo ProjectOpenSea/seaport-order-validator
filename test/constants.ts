@@ -112,6 +112,7 @@ export enum OfferIssue {
   NativeItem,
   DuplicateItem,
   AmountVelocityHigh,
+  AmountStepLarge,
 }
 
 export enum ConsiderationIssue {
@@ -123,6 +124,7 @@ export enum ConsiderationIssue {
   DuplicateItem,
   PrivateSale,
   AmountVelocityHigh,
+  AmountStepLarge,
 }
 
 export enum PrimaryFeeIssue {
