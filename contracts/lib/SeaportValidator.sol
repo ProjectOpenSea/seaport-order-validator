@@ -465,12 +465,12 @@ contract SeaportValidator is
             orderParameters.endTime > orderParameters.startTime
         ) {
             // Assign larger and smaller amount values
-            (uint256 largerAmount, uint256 smallerAmount) = offerItem
-                .startAmount > offerItem.endAmount
+            (uint256 maxAmount, uint256 minAmount) = offerItem.startAmount >
+                offerItem.endAmount
                 ? (offerItem.startAmount, offerItem.endAmount)
                 : (offerItem.endAmount, offerItem.startAmount);
 
-            uint256 amountDelta = largerAmount - smallerAmount;
+            uint256 amountDelta = maxAmount - minAmount;
             // delta of time that order exists for
             uint256 timeDelta = orderParameters.endTime -
                 orderParameters.startTime;
@@ -478,7 +478,7 @@ contract SeaportValidator is
             // Velocity scaled by 1e10 for precision
             uint256 velocity = (amountDelta * 1e10) / timeDelta;
             // gives velocity percentage in hundredth of a basis points per second in terms of larger value
-            uint256 velocityPercentage = velocity / (largerAmount * 1e4);
+            uint256 velocityPercentage = velocity / (maxAmount * 1e4);
 
             // 278 * 60 * 30 ~= 500,000
             if (velocityPercentage > 278) {
@@ -492,6 +492,13 @@ contract SeaportValidator is
                 // Over 5% change per 30 min
                 errorsAndWarnings.addWarning(
                     OfferIssue.AmountVelocityHigh.parseInt()
+                );
+            }
+
+            // Check for large amount steps
+            if (minAmount <= 1e15) {
+                errorsAndWarnings.addWarning(
+                    OfferIssue.AmountStepLarge.parseInt()
                 );
             }
         }
@@ -850,18 +857,18 @@ contract SeaportValidator is
             );
         }
 
-        // Check that amount velocity is not too high.
         if (
             considerationItem.startAmount != considerationItem.endAmount &&
             orderParameters.endTime > orderParameters.startTime
         ) {
+            // Check that amount velocity is not too high.
             // Assign larger and smaller amount values
-            (uint256 largerAmount, uint256 smallerAmount) = considerationItem
+            (uint256 maxAmount, uint256 minAmount) = considerationItem
                 .startAmount > considerationItem.endAmount
                 ? (considerationItem.startAmount, considerationItem.endAmount)
                 : (considerationItem.endAmount, considerationItem.startAmount);
 
-            uint256 amountDelta = largerAmount - smallerAmount;
+            uint256 amountDelta = maxAmount - minAmount;
             // delta of time that order exists for
             uint256 timeDelta = orderParameters.endTime -
                 orderParameters.startTime;
@@ -869,7 +876,7 @@ contract SeaportValidator is
             // Velocity scaled by 1e10 for precision
             uint256 velocity = (amountDelta * 1e10) / timeDelta;
             // gives velocity percentage in hundredth of a basis points per second in terms of larger value
-            uint256 velocityPercentage = velocity / (largerAmount * 1e4);
+            uint256 velocityPercentage = velocity / (maxAmount * 1e4);
 
             // 278 * 60 * 30 ~= 500,000
             if (velocityPercentage > 278) {
@@ -883,6 +890,13 @@ contract SeaportValidator is
                 // Over 5% change per 30 min
                 errorsAndWarnings.addWarning(
                     ConsiderationIssue.AmountVelocityHigh.parseInt()
+                );
+            }
+
+            // Check for large amount steps
+            if (minAmount <= 1e15) {
+                errorsAndWarnings.addWarning(
+                    ConsiderationIssue.AmountStepLarge.parseInt()
                 );
             }
         }

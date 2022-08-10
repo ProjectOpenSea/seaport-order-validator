@@ -25,11 +25,15 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 504 | Zero consideration items |
 | 505 | Duplicate consideration items |
 | 506 | Private Sale Order. Be careful on fulfillment |
+| 507 | Amount velocity is too high. Amount changes over 5% per 30 min if warning and over 50% per 30 min if error |
+| 508 | Amount step large. The steps between each step may be more than expected. Offer items are rounded down and consideration items are rounded up. |
 | 600 | Zero offer items |
 | 601 | Offer amount must not be zero |
 | 602 | More than one offer item |
 | 603 | Native offer item |
 | 604 | Duplicate offer item |
+| 605 | Amount velocity is too high. Amount changes over 5% per 30 min if warning and over 50% per 30 min if error |
+| 606 | Amount step large. The steps between each step may be more than expected. Offer items are rounded down and consideration items are rounded up. |
 | 700 | Primary fee missing |
 | 701 | Primary fee item type incorrect |
 | 702 | Primary fee token incorrect |

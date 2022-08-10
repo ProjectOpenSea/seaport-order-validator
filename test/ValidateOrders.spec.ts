@@ -425,7 +425,10 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.AmountNotOne],
+          [OfferIssue.AmountStepLarge],
+        ]);
 
         baseOrderParameters.offer = [
           {
@@ -439,7 +442,10 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateOfferItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.AmountNotOne],
+          [OfferIssue.AmountStepLarge],
+        ]);
       });
 
       it("ERC721 Criteria offer", async function () {
@@ -489,7 +495,7 @@ describe("Validate Orders", function () {
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ERC721Issue.CriteriaNotPartialFill],
-          [],
+          [OfferIssue.AmountStepLarge],
         ]);
 
         baseOrderParameters.offer = [
@@ -506,7 +512,7 @@ describe("Validate Orders", function () {
           await validator.validateOfferItems(baseOrderParameters)
         ).to.include.deep.ordered.members([
           [ERC721Issue.CriteriaNotPartialFill],
-          [],
+          [OfferIssue.AmountStepLarge],
         ]);
 
         baseOrderParameters.offer = [
@@ -633,8 +639,8 @@ describe("Validate Orders", function () {
             itemType: ItemType.ERC1155_WITH_CRITERIA,
             token: erc1155_1.address,
             identifierOrCriteria: "2",
-            startAmount: "2",
-            endAmount: "1",
+            startAmount: "2000000000000000000",
+            endAmount: "1000000000000000000",
           },
         ];
 
@@ -932,16 +938,16 @@ describe("Validate Orders", function () {
           itemType: ItemType.ERC20,
           token: erc20_1.address,
           identifierOrCriteria: "0",
-          startAmount: "0",
-          endAmount: "100",
+          startAmount: "1000000000000000000",
+          endAmount: "100000000000000000000",
           recipient: owner.address,
         },
         {
           itemType: ItemType.ERC20,
           token: erc20_1.address,
           identifierOrCriteria: "0",
-          startAmount: "100",
-          endAmount: "0",
+          startAmount: "100000000000000000000",
+          endAmount: "1000000000000000000",
           recipient: owner.address,
         },
       ];
@@ -951,6 +957,29 @@ describe("Validate Orders", function () {
       ).to.include.deep.ordered.members([
         [],
         [ConsiderationIssue.DuplicateItem],
+      ]);
+    });
+
+    it("Consideration item has large steps", async function () {
+      baseOrderParameters.consideration = [
+        {
+          itemType: ItemType.ERC20,
+          token: erc20_1.address,
+          identifierOrCriteria: "0",
+          startAmount: "100",
+          endAmount: "200",
+          recipient: owner.address,
+        },
+      ];
+
+      expect(
+        await validator.validateConsiderationItemParameters(
+          baseOrderParameters,
+          0
+        )
+      ).to.include.deep.ordered.members([
+        [],
+        [ConsiderationIssue.AmountStepLarge],
       ]);
     });
 
@@ -971,7 +1000,10 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.AmountNotOne],
+          [ConsiderationIssue.AmountStepLarge],
+        ]);
 
         baseOrderParameters.consideration = [
           {
@@ -986,7 +1018,10 @@ describe("Validate Orders", function () {
 
         expect(
           await validator.validateConsiderationItems(baseOrderParameters)
-        ).to.include.deep.ordered.members([[ERC721Issue.AmountNotOne], []]);
+        ).to.include.deep.ordered.members([
+          [ERC721Issue.AmountNotOne],
+          [ConsiderationIssue.AmountStepLarge],
+        ]);
       });
 
       it("ERC721 consideration DNE", async function () {
