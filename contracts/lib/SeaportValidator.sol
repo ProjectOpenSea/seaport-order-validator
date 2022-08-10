@@ -16,6 +16,9 @@ import {
 import {
     ConduitControllerInterface
 } from "../interfaces/ConduitControllerInterface.sol";
+import {
+    SeaportValidatorInterface
+} from "../interfaces/SeaportValidatorInterface.sol";
 import { ZoneInterface } from "../interfaces/ZoneInterface.sol";
 import { IERC721 } from "@openzeppelin/contracts/interfaces/IERC721.sol";
 import { IERC1155 } from "@openzeppelin/contracts/interfaces/IERC1155.sol";
@@ -56,6 +59,7 @@ import { SignatureVerification } from "./SignatureVerification.sol";
  * @notice SeaportValidator provides advanced validation to seaport orders.
  */
 contract SeaportValidator is
+    SeaportValidatorInterface,
     ConsiderationTypeHashes,
     SignatureVerification,
     Murky
@@ -124,7 +128,13 @@ contract SeaportValidator is
     {
         return
             isValidOrderWithConfiguration(
-                ValidationConfiguration(address(0), 0, false, false),
+                ValidationConfiguration(
+                    address(0),
+                    0,
+                    false,
+                    false,
+                    30 minutes
+                ),
                 order
             );
     }
@@ -141,7 +151,12 @@ contract SeaportValidator is
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         // Concatenates errorsAndWarnings with the returned errorsAndWarnings
-        errorsAndWarnings.concat(validateTime(order.parameters));
+        errorsAndWarnings.concat(
+            validateTime(
+                order.parameters,
+                validationConfiguration.shortOrderDuration
+            )
+        );
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
         errorsAndWarnings.concat(validateOfferItems(order.parameters));
         errorsAndWarnings.concat(validateConsiderationItems(order.parameters));
@@ -279,13 +294,13 @@ contract SeaportValidator is
     /**
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
+     * @param shortOrderDuration The duration of which an order is considered short
      * @return errorsAndWarnings The Issues and warnings
      */
-    function validateTime(OrderParameters memory orderParameters)
-        public
-        view
-        returns (ErrorsAndWarnings memory errorsAndWarnings)
-    {
+    function validateTime(
+        OrderParameters memory orderParameters,
+        uint256 shortOrderDuration
+    ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
         if (orderParameters.endTime <= orderParameters.startTime) {
@@ -319,7 +334,7 @@ contract SeaportValidator is
                         ? orderParameters.startTime
                         : block.timestamp
                 ) <
-            30 minutes
+            shortOrderDuration
         ) {
             // Order has a short duration
             errorsAndWarnings.addWarning(TimeIssue.ShortOrder.parseInt());

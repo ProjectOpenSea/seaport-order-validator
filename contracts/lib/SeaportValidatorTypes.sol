@@ -10,6 +10,8 @@ struct ValidationConfiguration {
     bool checkCreatorFee;
     /// @notice Should strict validation be skipped?
     bool skipStrictValidation;
+    /// @notice Short order duration in seconds
+    uint256 shortOrderDuration;
 }
 
 enum TimeIssue {

@@ -46,7 +46,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 901 | Order expired |
 | 902 | Order expires in over 30 weeks |
 | 903 | Order not active |
-| 904 | Order duration less than 30 minutes |
+| 904 | Short order duration (default 30 min) |
 | 1000 | Conduit key invalid |
 | 1100 | Signature invalid |
 | 1101 | Signature counter below current counter |

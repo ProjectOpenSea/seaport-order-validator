@@ -196,3 +196,5 @@ export enum MerkleIssue {
   SingleLeaf = 1500,
   Unsorted,
 }
+
+export const THIRTY_MINUTES = 30 * 60;

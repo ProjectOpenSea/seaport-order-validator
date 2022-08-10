@@ -31,8 +31,8 @@ interface SeaportValidatorInterface {
      * @notice Same as `isValidOrder` but allows for more configuration related to fee validation.
      */
     function isValidOrderWithConfiguration(
-        Order memory order,
-        ValidationConfiguration memory validationConfiguration
+        ValidationConfiguration memory validationConfiguration,
+        Order memory order
     ) external view returns (ErrorsAndWarnings memory errorsAndWarnings);
 
     /**
@@ -58,12 +58,13 @@ interface SeaportValidatorInterface {
     /**
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
-     * @return errorsAndWarnings The errors and warnings
+     * @param shortOrderDuration The duration of which an order is considered short
+     * @return errorsAndWarnings The Issues and warnings
      */
-    function validateTime(OrderParameters memory orderParameters)
-        external
-        view
-        returns (ErrorsAndWarnings memory errorsAndWarnings);
+    function validateTime(
+        OrderParameters memory orderParameters,
+        uint256 shortOrderDuration
+    ) external view returns (ErrorsAndWarnings memory errorsAndWarnings);
 
     /**
      * @notice Validate the status of an order
