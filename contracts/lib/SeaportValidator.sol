@@ -133,7 +133,8 @@ contract SeaportValidator is
                     0,
                     false,
                     false,
-                    30 minutes
+                    30 minutes,
+                    26 weeks
                 ),
                 order
             );
@@ -154,7 +155,8 @@ contract SeaportValidator is
         errorsAndWarnings.concat(
             validateTime(
                 order.parameters,
-                validationConfiguration.shortOrderDuration
+                validationConfiguration.shortOrderDuration,
+                validationConfiguration.distantOrderExpiration
             )
         );
         errorsAndWarnings.concat(validateOrderStatus(order.parameters));
@@ -295,11 +297,13 @@ contract SeaportValidator is
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
      * @param shortOrderDuration The duration of which an order is considered short
+     * @param distantOrderExpiration Distant order expiration delta in seconds.
      * @return errorsAndWarnings The Issues and warnings
      */
     function validateTime(
         OrderParameters memory orderParameters,
-        uint256 shortOrderDuration
+        uint256 shortOrderDuration,
+        uint256 distantOrderExpiration
     ) public view returns (ErrorsAndWarnings memory errorsAndWarnings) {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
@@ -315,7 +319,9 @@ contract SeaportValidator is
             // Order is expired
             errorsAndWarnings.addError(TimeIssue.Expired.parseInt());
             return errorsAndWarnings;
-        } else if (orderParameters.endTime > block.timestamp + (30 weeks)) {
+        } else if (
+            orderParameters.endTime > block.timestamp + distantOrderExpiration
+        ) {
             // Order expires in a long time
             errorsAndWarnings.addWarning(
                 TimeIssue.DistantExpiration.parseInt()

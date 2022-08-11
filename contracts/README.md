@@ -44,7 +44,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 801 | Order fully filled |
 | 900 | End time is before start time |
 | 901 | Order expired |
-| 902 | Order expires in over 30 weeks |
+| 902 | Order expiration in too long (default 26 weeks) |
 | 903 | Order not active |
 | 904 | Short order duration (default 30 min) |
 | 1000 | Conduit key invalid |

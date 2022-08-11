@@ -59,11 +59,13 @@ interface SeaportValidatorInterface {
      * @notice Check the time validity of an order
      * @param orderParameters The parameters for the order to validate
      * @param shortOrderDuration The duration of which an order is considered short
+     * @param distantOrderExpiration Distant order expiration delta in seconds.
      * @return errorsAndWarnings The Issues and warnings
      */
     function validateTime(
         OrderParameters memory orderParameters,
-        uint256 shortOrderDuration
+        uint256 shortOrderDuration,
+        uint256 distantOrderExpiration
     ) external view returns (ErrorsAndWarnings memory errorsAndWarnings);
 
     /**

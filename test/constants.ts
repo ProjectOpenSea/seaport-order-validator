@@ -198,3 +198,4 @@ export enum MerkleIssue {
 }
 
 export const THIRTY_MINUTES = 30 * 60;
+export const WEEKS_26 = 60 * 60 * 24 * 7 * 26;

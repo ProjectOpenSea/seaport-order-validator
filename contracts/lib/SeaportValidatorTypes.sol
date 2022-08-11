@@ -12,6 +12,8 @@ struct ValidationConfiguration {
     bool skipStrictValidation;
     /// @notice Short order duration in seconds
     uint256 shortOrderDuration;
+    /// @notice Distant order expiration delta in seconds. Warning if order expires in longer than this.
+    uint256 distantOrderExpiration;
 }
 
 enum TimeIssue {

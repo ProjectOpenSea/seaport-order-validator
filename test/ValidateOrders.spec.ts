@@ -26,6 +26,7 @@ import {
   StatusIssue,
   THIRTY_MINUTES,
   TimeIssue,
+  WEEKS_26,
   ZoneIssue,
 } from "./constants";
 
@@ -133,7 +134,11 @@ describe("Validate Orders", function () {
       baseOrderParameters.endTime = 1000;
 
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([[TimeIssue.Expired], []]);
     });
 
@@ -144,13 +149,21 @@ describe("Validate Orders", function () {
       ).add(10000);
 
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([[], [TimeIssue.NotActive]]);
     });
 
     it("Success", async function () {
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([[], []]);
     });
 
@@ -160,7 +173,11 @@ describe("Validate Orders", function () {
       ).add(100);
 
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([
         [TimeIssue.EndTimeBeforeStartTime],
         [],
@@ -176,7 +193,11 @@ describe("Validate Orders", function () {
       ).toString();
 
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([[], [TimeIssue.ShortOrder]]);
     });
 
@@ -185,7 +206,11 @@ describe("Validate Orders", function () {
         Date.now() / 1000 + 60 * 60 * 24 * 7 * 35
       ).toString();
       expect(
-        await validator.validateTime(baseOrderParameters, THIRTY_MINUTES)
+        await validator.validateTime(
+          baseOrderParameters,
+          THIRTY_MINUTES,
+          WEEKS_26
+        )
       ).to.include.deep.ordered.members([[], [TimeIssue.DistantExpiration]]);
     });
   });
@@ -2856,6 +2881,7 @@ describe("Validate Orders", function () {
           recipient: "0xAAe7aC476b117bcCAfE2f05F582906be44bc8FF1", // BAYC fee recipient
         },
       ];
+      WEEKS_26;
       baseOrderParameters.conduitKey = OPENSEA_CONDUIT_KEY;
       baseOrderParameters.totalOriginalConsiderationItems = 3;
 
@@ -2867,6 +2893,7 @@ describe("Validate Orders", function () {
         checkCreatorFee: true,
         skipStrictValidation: false,
         shortOrderDuration: THIRTY_MINUTES,
+        distantOrderExpiration: WEEKS_26,
       };
 
       expect(
@@ -2936,6 +2963,7 @@ describe("Validate Orders", function () {
         checkCreatorFee: false,
         skipStrictValidation: true,
         shortOrderDuration: THIRTY_MINUTES,
+        distantOrderExpiration: WEEKS_26,
       };
 
       expect(
@@ -2980,6 +3008,7 @@ describe("Validate Orders", function () {
         checkCreatorFee: true,
         skipStrictValidation: false,
         shortOrderDuration: THIRTY_MINUTES,
+        distantOrderExpiration: WEEKS_26,
       };
 
       expect(
