@@ -2,7 +2,11 @@
 [![Code Coverage][coverage-badge]][coverage-link]
 
 # Seaport Order Validator
+Seaport Order Validator provides a solidity contract which validates orders and order components via RPC static calls. 
 
+There are a variety of functions which conduct micro and macro validations on various components of the order. Each validation function returns two arrays of uint16s, the first is an array of errors, and the second is an array of warnings. For a quick lookup of issue codes, see the [issue table](contracts/README.md).
+
+## Table of Contents 
 - [Macro-Validation](#macro-validation)
 - [Micro-Validation](#micro-validation)
     - [validateTime](#validatetime---validates-the-timing-of-the-order)
@@ -22,11 +26,6 @@
     - [sortMerkleTokens](#sortmerkletokens)
     - [getMerkleRoot](#getmerkleroot)
     - [getMerkleProof](#getmerkleroot)
-
-
-Seaport Order Validator provides a solidity contract which validates orders and order components via RPC static calls. 
-
-There are a variety of functions which conduct micro and macro validations on various components of the order. Each validation function returns two arrays of uint16s, the first is an array of errors, and the second is an array of warnings. For a quick lookup of issue codes, see the [issue table](contracts/README.md).
 
 ## Macro-Validation
 
