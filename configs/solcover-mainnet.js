@@ -6,6 +6,7 @@ module.exports = {
     "test/TestZone.sol",
     "test/TestERC1271.sol",
     "test/TestERC721Funky.sol",
+    "test/contracts/test/TestEW.sol",
     "lib/ConsiderationTypeHashes.sol",
     "lib/ConsiderationStructs.sol",
     "lib/ConsiderationEnums.sol",
