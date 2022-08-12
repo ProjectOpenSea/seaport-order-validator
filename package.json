@@ -13,7 +13,8 @@
     "prepare": "husky install",
     "build": "hardhat clean && hardhat compile",
     "lint:fix": "prettier --write **.{sol,js,ts} && eslint --fix . --ext js,ts",
-    "lint:check": "concurrently \"prettier --check **.{sol,js,ts}\" \"eslint . --ext js,ts\""
+    "lint:check": "concurrently \"prettier --check **.{sol,js,ts}\" \"eslint . --ext js,ts\"",
+    "verify": "hardhat verify --network verificationNetwork 0xF75194740067D6E4000000003b350688DD770000"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",

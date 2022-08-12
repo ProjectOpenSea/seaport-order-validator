@@ -26,6 +26,13 @@ const config: HardhatUserConfig = {
         url: "https://mainnet.infura.io/v3/" + (process.env.INFURA_KEY ?? ""),
       },
     },
+    verificationNetwork: {
+      url: process.env.VERIFICATION_NETWORK_RPC ?? "",
+    },
+  },
+
+  etherscan: {
+    apiKey: process.env.EXPLORER_API_KEY,
   },
 };
 
