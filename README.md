@@ -3,6 +3,27 @@
 
 # Seaport Order Validator
 
+- [Macro-Validation](#macro-validation)
+- [Micro-Validation](#micro-validation)
+    - [validateTime](#validatetime---validates-the-timing-of-the-order)
+    - [validateOrderStatus](#validateorderstatus---validates-the-order-status-from-on-chain-data)
+    - [validateOfferItems](#validateofferitems---validates-the-offer-item-parameters-and-balancesapproval)
+    - [validateOfferItem](#validateofferitem---validates-the-parameters-and-balancesapprovals-for-one-offer-item)
+    - [validateOfferItemParameters](#validateofferitemparameters---validates-the-parameters-for-one-offer-item)
+    - [validateOfferItemApprovalAndBalance](#validateofferitemapprovalandbalance---validates-the-balancesapprovals-for-one-offer-item)
+    - [validateConsiderationItems](#validateconsiderationitems---validate-the-parameters-of-the-consideration-items)
+    - [validateConsiderationItemParameters](#validateconsiderationitemparameters---check-the-parameters-for-a-single-consideration-item)
+    - [isValidZone](#isvalidzone---checks-if-the-zone-accepts-the-order)
+    - [validateStrictLogic](#validatestrictlogic---validate-strict-order-logic)
+    - [validateSignature](#validatesignature---validates-the-signature-using-current-counter)
+    - [validateSignatureWithCounter](#validatesignaturewithcounter---validates-the-signature-using-the-given-counter)
+    - [getApprovalAddress](#getapprovaladdress---gets-the-approval-address-for-a-conduit-key)
+- [Merkle Validation](#merkle-validation)
+    - [sortMerkleTokens](#sortmerkletokens)
+    - [getMerkleRoot](#getmerkleroot)
+    - [getMerkleProof](#getmerkleroot)
+
+
 Seaport Order Validator provides a solidity contract which validates orders and order components via RPC static calls. 
 
 There are a variety of functions which conduct micro and macro validations on various components of the order. Each validation function returns two arrays of uint16s, the first is an array of errors, and the second is an array of warnings. For a quick lookup of issue codes, see the [issue table](contracts/README.md).
@@ -32,7 +53,7 @@ There are a variety of functions which conduct micro and macro validations on va
         - `validateStrictLogic` - if skipStrictValidation is false. Called with the parameters from the configuration
         - `validateSignature`
 
-## Micro-Validation:
+## Micro-Validation
 - ##### `validateTime` - Validates the timing of the order
     - Errors:
         - End time must be after start time
@@ -118,12 +139,12 @@ There are a variety of functions which conduct micro and macro validations on va
     - Warnings:
         - Signature Counter High - The signature counter is more than 2 greater than the current counter for the signer.
         - When error is invalid, original consideration Items field in order does not match the total consideration items. This may be the cause of the invalid signature.
-- `getApprovalAddress` - Gets the approval address for a conduit key
+- ##### `getApprovalAddress` - Gets the approval address for a conduit key
     - Returns the approval address for the given conduit key. (seaport address if conduit key is 0)
     - Errors:
         - Conduit key invalid (not created). Returns zero address for the approval address.
 
-### Merkle Validation:
+### Merkle Validation
 
 - ##### `sortMerkleTokens`
     
