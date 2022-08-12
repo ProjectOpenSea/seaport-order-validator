@@ -1683,13 +1683,15 @@ describe("Validate Orders", function () {
     });
 
     it("No zone", async function () {
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([[], []]);
+      ).to.include.deep.ordered.members([[ZoneIssue.NotSet], []]);
     });
 
     it("Eoa zone", async function () {
       baseOrderParameters.zone = otherAccounts[1].address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       expect(
         await validator.isValidZone(baseOrderParameters)
       ).to.include.deep.ordered.members([[], []]);
@@ -1697,6 +1699,7 @@ describe("Validate Orders", function () {
 
     it("success", async function () {
       baseOrderParameters.zone = testZone.address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       expect(
         await validator.isValidZone(baseOrderParameters)
       ).to.include.deep.ordered.members([[], []]);
@@ -1704,34 +1707,46 @@ describe("Validate Orders", function () {
 
     it("invalid magic value", async function () {
       baseOrderParameters.zone = testZone.address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [3]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
+      ).to.include.deep.ordered.members([[], [ZoneIssue.RejectedOrder]]);
     });
 
     it("zone revert", async function () {
       baseOrderParameters.zone = testZone.address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
+      ).to.include.deep.ordered.members([[], [ZoneIssue.RejectedOrder]]);
     });
 
     it("zone revert2", async function () {
       baseOrderParameters.zone = testZone.address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [2]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
+      ).to.include.deep.ordered.members([[], [ZoneIssue.RejectedOrder]]);
     });
 
     it("not a zone", async function () {
       baseOrderParameters.zone = validator.address;
+      baseOrderParameters.orderType = OrderType.FULL_RESTRICTED;
       baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
       expect(
         await validator.isValidZone(baseOrderParameters)
-      ).to.include.deep.ordered.members([[ZoneIssue.RejectedOrder], []]);
+      ).to.include.deep.ordered.members([[], [ZoneIssue.RejectedOrder]]);
+    });
+
+    it("zone not checked on open order", async function () {
+      baseOrderParameters.zone = validator.address;
+      baseOrderParameters.zoneHash = coder.encode(["uint256"], [1]);
+      expect(
+        await validator.isValidZone(baseOrderParameters)
+      ).to.include.deep.ordered.members([[], []]);
     });
   });
 

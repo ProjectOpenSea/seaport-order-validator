@@ -61,6 +61,7 @@ Use this file to decode validation results from `SeaportValidator`. The return v
 | 1300 | Native token address must be null address |
 | 1301 | Native token identifier must be zero |
 | 1302 | Native token insufficient balance |
-| 1400 | Zone rejected order |
+| 1400 | Zone rejected order. This order must be fulfilled by the zone. |
+| 1401 | Zone not set. Order unfulfillable |
 | 1500 | Merkle input only has one leaf |
 | 1501 | Merkle input not sorted correctly |

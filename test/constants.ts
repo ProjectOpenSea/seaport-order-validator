@@ -166,6 +166,7 @@ export enum NativeIssue {
 
 export enum ZoneIssue {
   RejectedOrder = 1400,
+  NotSet,
 }
 
 export enum ConduitIssue {

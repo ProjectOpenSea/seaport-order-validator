@@ -1481,6 +1481,17 @@ contract SeaportValidator is
     {
         errorsAndWarnings = ErrorsAndWarnings(new uint16[](0), new uint16[](0));
 
+        // If not restricted, zone isn't checked
+        if (uint8(orderParameters.orderType) < 2) {
+            return errorsAndWarnings;
+        }
+
+        if (orderParameters.zone == address(0)) {
+            // Zone is not set
+            errorsAndWarnings.addError(ZoneIssue.NotSet.parseInt());
+            return errorsAndWarnings;
+        }
+
         // EOA zone is always valid
         if (address(orderParameters.zone).code.length == 0) {
             // Address is EOA. Valid order
@@ -1505,7 +1516,7 @@ contract SeaportValidator is
                 ZoneInterface.isValidOrder.selector
             )
         ) {
-            errorsAndWarnings.addError(ZoneIssue.RejectedOrder.parseInt());
+            errorsAndWarnings.addWarning(ZoneIssue.RejectedOrder.parseInt());
         }
     }
 

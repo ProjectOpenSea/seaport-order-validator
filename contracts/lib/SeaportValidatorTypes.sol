@@ -89,7 +89,8 @@ enum NativeIssue {
 }
 
 enum ZoneIssue {
-    RejectedOrder
+    RejectedOrder,
+    NotSet
 }
 
 enum ConduitIssue {
