@@ -2,7 +2,7 @@
 [![Code Coverage][coverage-badge]][coverage-link]
 
 # Seaport Order Validator
-Seaport Order Validator provides a solidity contract which validates orders and order components via RPC static calls. 
+Seaport Order Validator provides a solidity contract which validates orders and order components via RPC static calls. Seaport Order Validator currently supports validation of orders (not advanced orders) and provides minimal validation for criteria based items. This is an ongoing effort. The Seaport Order Validator is deployed at the address `0xF75194740067D6E4000000003b350688DD770000`.
 
 There are a variety of functions which conduct micro and macro validations on various components of the order. Each validation function returns two arrays of uint16s, the first is an array of errors, and the second is an array of warnings. For a quick lookup of issue codes, see the [issue table](contracts/README.md).
 
