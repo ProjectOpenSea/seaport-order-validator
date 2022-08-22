@@ -1,3 +1,5 @@
 coverage
 coverage-mainnet
 coverage-arbitrum
+typechain-types
+dist
