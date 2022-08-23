@@ -22,7 +22,8 @@
   "main": "dist/src/index.js",
   "files": [
     "dist",
-    "artifacts/contracts/lib/SeaportValidator.sol/SeaportValidator.json"
+    "artifacts/contracts/lib/SeaportValidator.sol/SeaportValidator.json",
+    "contracts/README.md"
   ],
   "types": "dist/src/index.d.ts",
   "dependencies": {

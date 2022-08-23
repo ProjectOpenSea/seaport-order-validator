@@ -7,6 +7,7 @@ Seaport Order Validator provides a solidity contract which validates orders and 
 There are a variety of functions which conduct micro and macro validations on various components of the order. Each validation function returns two arrays of uint16s, the first is an array of errors, and the second is an array of warnings. For a quick lookup of issue codes, see the [issue table](contracts/README.md).
 
 ## Table of Contents 
+- [JS Package Usage](#js-package-usage)
 - [Macro-Validation](#macro-validation)
 - [Micro-Validation](#micro-validation)
     - [validateTime](#validatetime---validates-the-timing-of-the-order)
@@ -26,6 +27,12 @@ There are a variety of functions which conduct micro and macro validations on va
     - [sortMerkleTokens](#sortmerkletokens)
     - [getMerkleRoot](#getmerkleroot)
     - [getMerkleProof](#getmerkleroot)
+
+## JS Package Usage
+- Add the package via `yarn add @opensea/seaport-order-validator` or `npm i @opensea/seaport-order-validator`
+- Import the package to your JS/TS file via `import { SeaportOrderValidator } from "@opensea/seaport-order-validator"`
+- Create an instance of `SeaportOrderValidator` `const validator = new SeaportOrderValidator(new ethers.providers.JsonRpcProvider(<RPC>));`
+- All validation functions are exposed to the `SeaportOrderValidator` instance
 
 ## Macro-Validation
 
