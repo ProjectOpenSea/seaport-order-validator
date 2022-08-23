@@ -1,6 +1,6 @@
 {
   "name": "@opensea/seaport-order-validator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "OpenSea Developers",
   "homepage": "https://github.com/ProjectOpenSea/seaport-order-validator#readme",
