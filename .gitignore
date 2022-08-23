@@ -13,3 +13,5 @@ yarn-error.log
 .vscode/
 coverage-arbitrum
 coverage-mainnet
+dist
+**.tgz

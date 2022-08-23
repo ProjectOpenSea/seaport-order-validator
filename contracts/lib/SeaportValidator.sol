@@ -194,6 +194,7 @@ contract SeaportValidator is
     /**
      * @notice Gets the approval address for the given conduit key
      * @param conduitKey Conduit key to get approval address for
+     * @return approvalAddress The address to use for approvals
      * @return errorsAndWarnings An ErrorsAndWarnings structs with results
      */
     function getApprovalAddress(bytes32 conduitKey)
@@ -298,7 +299,7 @@ contract SeaportValidator is
      * @param orderParameters The parameters for the order to validate
      * @param shortOrderDuration The duration of which an order is considered short
      * @param distantOrderExpiration Distant order expiration delta in seconds.
-     * @return errorsAndWarnings The Issues and warnings
+     * @return errorsAndWarnings The errors and warnings
      */
     function validateTime(
         OrderParameters memory orderParameters,
@@ -1303,6 +1304,17 @@ contract SeaportValidator is
             (creatorFeePresent ? 1 : 0);
     }
 
+    /**
+     * @notice Fetches the on chain creator fees.
+     * @dev Uses the creatorFeeEngine when available, otherwise fallback to `IERC2981`.
+     * @param token The token address
+     * @param tokenId The token identifier
+     * @param transactionAmountStart The transaction start amount
+     * @param transactionAmountEnd The transaction end amount
+     * @return recipient creator fee recipient
+     * @return creatorFeeAmountStart creator fee start amount
+     * @return creatorFeeAmountEnd creator fee end amount
+     */
     function getCreatorFeeInfo(
         address token,
         uint256 tokenId,
@@ -1601,6 +1613,14 @@ contract SeaportValidator is
         );
     }
 
+    /**
+     * @notice Verifies a merkle proof for the value to prove and given root and proof.
+     * @dev The `valueToProve` is hashed prior to executing the proof verification.
+     * @param merkleRoot The root of the merkle tree
+     * @param merkleProof The merkle proof
+     * @param valueToProve The value to prove
+     * @return whether proof is valid
+     */
     function verifyMerkleProof(
         bytes32 merkleRoot,
         bytes32[] memory merkleProof,
