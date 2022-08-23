@@ -1,5 +1,5 @@
 {
-  "name": "seaport-order-validator",
+  "name": "@opensea/seaport-order-validator",
   "version": "0.1.0",
   "license": "MIT",
   "author": "OpenSea Developers",
