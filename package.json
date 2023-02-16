@@ -30,7 +30,7 @@
     "ethers": "^5.7.0",
     "got": ">=11.8.5",
     "minimatch": ">=3.0.5",
-    "undici": ">=5.8.2"
+    "undici": ">=5.19.1"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",
